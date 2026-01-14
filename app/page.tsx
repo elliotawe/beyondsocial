@@ -11,7 +11,7 @@ export default function Page() {
         <div className="min-h-screen bg-background text-foreground">
             <Navigation />
             <Hero />
-            <HowItWorks />
+            <HowItWorks />s
             <Features />
             <Showcase />
             <UseCases />

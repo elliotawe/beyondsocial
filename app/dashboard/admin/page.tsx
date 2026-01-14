@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import Logo from "@/components/partials/logo";
 
 export default function AdminConsole() {
     const { user, isLoading } = useAuth();
@@ -30,7 +31,7 @@ export default function AdminConsole() {
     }, [user, isLoading, router]);
 
     if (isLoading || !user || user.role !== "admin") {
-        return null;
+        return <Logo className="w-8 h-8 text-primary animate-pulse" />;
     }
 
     const users = [

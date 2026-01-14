@@ -2,17 +2,12 @@
 
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 
 export default function Hero() {
     return (
         <div className="min-h-screen bg-gradient-to-b from-background via-background/50 to-background flex flex-col items-center justify-center px-6 py-20">
-            <div className="max-w-4xl w-full mx-auto space-y-12">
-                {/* Badge */}
-                <Badge className="text-center mx-auto py-2 px-4">
-                    ✨ Introducing BeyondSocial - Chat with AI to create videos
-                </Badge>
+            <div className="max-w-4xl w-full mx-auto space-y-12 my-12">
 
                 {/* Headline & Subheader */}
                 <div className="space-y-6 text-center">
@@ -27,15 +22,15 @@ export default function Hero() {
 
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-                    <Button size="lg" className="gap-2 bg-white text-black hover:bg-gray-100 text-base h-12 px-8" asChild>
+                    <Button size="lg" className="gap-2 bg-white text-black hover:bg-gray-100 text-base h-12 px-8 hover:text-white" asChild>
                         <Link href="/login">
                             Get Started
                             <ArrowRight className="w-4 h-4" />
                         </Link>
                     </Button>
-                    <Button variant="outline" size="lg" className="gap-2 text-base h-12 px-8 bg-transparent">
+                    {/* <Button variant="outline" size="lg" className="gap-2 text-base h-12 px-8 bg-transparent">
                         Watch Demo
-                    </Button>
+                    </Button> */}
                 </div>
 
                 {/* Dashboard Preview */}

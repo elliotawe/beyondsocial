@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Logo from "@/components/partials/logo";
 import {
     LayoutDashboard,
     Video,
@@ -87,7 +88,7 @@ export default function DashboardLayout({
     if (isLoading || !user) {
         return (
             <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-                <Sparkles className="w-8 h-8 text-primary animate-pulse" />
+                <Logo className="w-8 h-8 text-primary animate-pulse" />
             </div>
         );
     }
@@ -102,7 +103,7 @@ export default function DashboardLayout({
             <Sidebar open={open} setOpen={setOpen}>
                 <SidebarBody className="justify-between gap-10">
                     <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-                        {open ? <Logo /> : <LogoIcon />}
+                        {open ? <Logoo /> : <LogoIcon />}
                         <div className="mt-8 flex flex-col gap-2">
                             {links.map((link, idx) => (
                                 <SidebarLink key={idx} link={link} />
@@ -137,19 +138,19 @@ export default function DashboardLayout({
     );
 }
 
-export const Logo = () => {
+export const Logoo = () => {
     return (
         <a
             href="#"
             className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
         >
-            <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
+            <Logo className="h-8 w-auto" />
             <motion.span
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="font-medium whitespace-pre text-black dark:text-white"
+                className="font-medium whitespace-pre text-black dark:text-white -ml-2"
             >
-                Beyond
+                eyond Social
             </motion.span>
         </a>
     );
@@ -160,7 +161,7 @@ export const LogoIcon = () => {
             href="#"
             className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
         >
-            <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
+            <Logo className="h-8 w-auto" />
         </a>
     );
 };
