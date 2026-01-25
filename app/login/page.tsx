@@ -1,6 +1,6 @@
-import { Sparkles } from "lucide-react";
 import { LoginForm } from "@/components/partials/login-form";
 import Image from "next/image";
+import Logo from "@/components/partials/logo";
 
 export default function LoginPage() {
   return (
@@ -18,7 +18,7 @@ export default function LoginPage() {
         <div className="flex justify-center gap-2 md:justify-end">
           <a href="#" className="flex items-center gap-2 font-medium">
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <Sparkles className="size-4" />
+              <Logo className="size-4" />
             </div>
             Beyond
           </a>

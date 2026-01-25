@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
                     { title: "Shares", value: "2.1K", icon: Share2, trend: "+8%" },
                     { title: "New Followers", value: "842", icon: Users, trend: "+15%" },
                 ].map((stat, i) => (
-                    <Card key={i} className="border-none shadow-sm dark:bg-zinc-900">
+                    <Card key={i} className="border border-border shadow-sm">
                         <CardContent className="p-6">
                             <div className="flex justify-between items-center mb-4">
                                 <div className="p-2 bg-primary/10 rounded-lg">
@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-                <Card className="border-none shadow-sm dark:bg-zinc-900">
+                <Card className="border border-border shadow-sm">
                     <CardHeader>
                         <CardTitle>Views vs Engagement</CardTitle>
                         <CardDescription>Comparison of reach and interaction across recent videos.</CardDescription>
@@ -82,21 +82,21 @@ export default function AnalyticsPage() {
                     <CardContent className="h-[350px] mt-4">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={barData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(0.9 0.02 240 / 0.1)" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
                                 <Tooltip
-                                    cursor={{ fill: 'oklch(0.9 0.02 240 / 0.05)' }}
-                                    contentStyle={{ backgroundColor: 'oklch(0.18 0.02 240)', border: 'none', borderRadius: '12px' }}
+                                    cursor={{ fill: 'var(--muted)', opacity: 0.1 }}
+                                    contentStyle={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)', borderRadius: '12px' }}
                                 />
                                 <Bar dataKey="views" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={20} />
-                                <Bar dataKey="engagement" fill="oklch(0.5 0.1 240)" radius={[4, 4, 0, 0]} barSize={20} />
+                                <Bar dataKey="engagement" fill="var(--color-secondary)" radius={[4, 4, 0, 0]} barSize={20} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-sm dark:bg-zinc-900">
+                <Card className="border border-border shadow-sm">
                     <CardHeader>
                         <CardTitle>Platform Distribution</CardTitle>
                         <CardDescription>Where your audience is watching.</CardDescription>
@@ -128,12 +128,12 @@ export default function AnalyticsPage() {
                 </Card>
             </div>
 
-            <div className="p-6 bg-yellow-500/5 border border-yellow-500/10 rounded-3xl">
-                <p className="text-sm font-bold text-yellow-600 mb-1 flex items-center gap-2">
+            <div className="p-6 bg-primary/5 border border-primary/10 rounded-3xl">
+                <p className="text-sm font-bold text-primary mb-1 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4" />
                     AI Performance Insight
                 </p>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                <p className="text-sm text-muted-foreground">
                     "Your 'Desk Setup' videos are performing 40% better on TikTok compared to Instagram Reels. Consider shifting more production focus to vertical tech aesthetic for TikTok."
                 </p>
             </div>

@@ -41,7 +41,7 @@ export default function Features() {
                     </p>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {features.map((feature, i) => (
                         <Card key={i} className="border-border/40 bg-secondary/10">
                             <CardHeader>

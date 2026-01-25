@@ -11,7 +11,7 @@ export default function Hero() {
 
                 {/* Headline & Subheader */}
                 <div className="space-y-6 text-center">
-                    <h1 className="text-5xl md:text-7xl font-bold text-balance leading-tight">
+                    <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-balance leading-tight">
                         Create social videos effortlessly with AI
                     </h1>
                     <p className="text-xl text-muted-foreground text-balance max-w-2xl mx-auto leading-relaxed">
@@ -22,7 +22,7 @@ export default function Hero() {
 
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-                    <Button size="lg" className="gap-2 bg-white text-black hover:bg-gray-100 text-base h-12 px-8 hover:text-white" asChild>
+                    <Button size="lg" className="gap-2 text-base h-12 px-8" asChild>
                         <Link href="/login">
                             Get Started
                             <ArrowRight className="w-4 h-4" />
@@ -44,9 +44,9 @@ export default function Hero() {
                                 <div className="w-3 h-3 rounded-full bg-green-500" />
                             </div>
 
-                            <div className="grid grid-cols-3 gap-6 flex-1">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
                                 {/* Chat Panel */}
-                                <div className="col-span-2 border-r border-border/40 pr-6 space-y-4">
+                                <div className="md:col-span-2 md:border-r border-border/40 md:pr-6 space-y-4">
                                     <div className="space-y-3">
                                         <div className="bg-secondary/50 rounded-lg p-4 w-3/4">
                                             <p className="text-sm text-muted-foreground">Create a viral dance video with trending audio...</p>

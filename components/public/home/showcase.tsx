@@ -16,7 +16,7 @@ export default function Showcase() {
                     <p className="text-muted-foreground text-lg max-w-xl mx-auto">See what creators are making with Beyond</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                     {videos.map((video) => (
                         <Card key={video.id} className="border-border/40 overflow-hidden group cursor-pointer">
                             <div className="aspect-[9/16] bg-gradient-to-br from-secondary/60 via-secondary/40 to-secondary/20 flex items-center justify-center relative">

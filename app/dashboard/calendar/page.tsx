@@ -71,7 +71,7 @@ export default function CalendarPage() {
 
             <div className="grid gap-8 lg:grid-cols-12">
                 <div className="lg:col-span-4 space-y-6">
-                    <Card className="border-none shadow-sm dark:bg-zinc-900 overflow-hidden">
+                    <Card className="border border-border shadow-sm overflow-hidden">
                         <CardContent className="p-4">
                             <Calendar
                                 mode="single"
@@ -112,7 +112,7 @@ export default function CalendarPage() {
                         <div key={day.date} className="space-y-4">
                             <div className="flex items-center gap-4">
                                 <h3 className="font-bold text-lg">{day.day}, {day.date}</h3>
-                                <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+                                <div className="h-px flex-1 bg-border" />
                             </div>
                             {day.items.length > 0 ? (
                                 <div className="grid gap-4 md:grid-cols-2">
@@ -122,7 +122,7 @@ export default function CalendarPage() {
                                             href="/dashboard/create"
                                             className={`p-4 rounded-2xl border flex items-center gap-4 group transition-all hover:scale-[1.02] ${item.suggestion
                                                 ? "bg-primary/5 border-primary/20 hover:border-primary/40"
-                                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+                                                : "bg-card border-border hover:border-border/60"
                                                 }`}
                                         >
                                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.platform === 'TikTok' ? 'bg-zinc-950 text-white' :
@@ -135,18 +135,18 @@ export default function CalendarPage() {
                                             </div>
                                             <div className="flex-1 overflow-hidden">
                                                 <div className="flex items-center gap-2 mb-0.5">
-                                                    <span className="text-xs font-mono font-medium text-zinc-400">{item.time}</span>
+                                                    <span className="text-xs font-mono font-medium text-muted-foreground">{item.time}</span>
                                                     {item.suggestion && <Badge className="text-[8px] h-4 bg-primary/20 text-primary border-none">AI Pick</Badge>}
                                                 </div>
                                                 <p className="font-semibold text-sm truncate">{item.title}</p>
-                                                <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{item.type}</p>
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{item.type}</p>
                                             </div>
-                                            <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:translate-x-1 transition-transform" />
+                                            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                                         </Link>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="p-8 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center">
+                                <div className="p-8 rounded-2xl border border-dashed border-border flex flex-col items-center justify-center text-center">
                                     <p className="text-sm text-muted-foreground mb-4">No posts scheduled for this day.</p>
                                     <Button variant="ghost" size="sm" className="rounded-xl" asChild>
                                         <Link href="/dashboard/create">

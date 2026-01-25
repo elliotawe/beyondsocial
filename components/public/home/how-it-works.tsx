@@ -28,7 +28,7 @@ const steps = [
 
 export default function HowItWorks() {
     return (
-        <section id="how" className="py-20 px-6 border-t border-border/40">
+        <section id="how" className="py-32 px-6 border-t border-border/40">
             <div className="max-w-6xl mx-auto space-y-12">
                 <div className="text-center space-y-4">
                     <h2 className="text-4xl md:text-5xl font-bold">How It Works</h2>
@@ -37,7 +37,7 @@ export default function HowItWorks() {
                     </p>
                 </div>
 
-                <div className="grid md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {steps.map((step, i) => {
                         const Icon = step.icon
                         return (

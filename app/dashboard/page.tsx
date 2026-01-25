@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import {
     LineChart,
     Line,
@@ -44,11 +45,15 @@ const stats = [
 ];
 
 export default function DashboardHome() {
+    const { user } = useAuth();
+
     return (
         <div className="space-y-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit">Welcome back, Elliot</h1>
+                    <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit truncate max-w-[300px]">
+                        Welcome back, {user?.name?.split(' ')[0] || "there"}
+                    </h1>
                     <p className="text-muted-foreground">Here's what's happening with your social accounts today.</p>
                 </div>
                 <Button asChild className="rounded-xl shadow-lg shadow-primary/20">
@@ -67,7 +72,7 @@ export default function DashboardHome() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
                     >
-                        <Card className="border-none shadow-sm dark:bg-zinc-900 overflow-hidden relative">
+                        <Card className="border border-border shadow-sm overflow-hidden relative">
                             <CardContent className="p-6">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -78,7 +83,7 @@ export default function DashboardHome() {
                                     </Badge>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{stat.title}</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
                                     <p className="text-3xl font-bold font-outfit">{stat.value}</p>
                                 </div>
                             </CardContent>
@@ -88,7 +93,7 @@ export default function DashboardHome() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-                <Card className="lg:col-span-2 border-none shadow-sm dark:bg-zinc-900">
+                <Card className="lg:col-span-2 border border-border shadow-sm">
                     <CardHeader>
                         <CardTitle>Content Engagement</CardTitle>
                         <CardDescription>Sample data showing reach across all platforms (TikTok, Reels, Shorts)</CardDescription>
@@ -102,24 +107,24 @@ export default function DashboardHome() {
                                         <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(0.9 0.02 240 / 0.1)" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                                 <XAxis
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fontSize: 12, fill: 'oklch(0.5 0.02 240)' }}
+                                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
                                     dy={10}
                                 />
                                 <YAxis hide />
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: 'oklch(0.18 0.02 240)',
-                                        border: 'none',
+                                        backgroundColor: 'var(--background)',
+                                        border: '1px solid var(--border)',
                                         borderRadius: '12px',
                                         fontSize: '12px',
-                                        color: 'white'
+                                        color: 'var(--foreground)'
                                     }}
-                                    itemStyle={{ color: 'white' }}
+                                    itemStyle={{ color: 'var(--foreground)' }}
                                 />
                                 <Area
                                     type="monotone"
@@ -134,7 +139,7 @@ export default function DashboardHome() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-sm dark:bg-zinc-900">
+                <Card className="border border-border shadow-sm">
                     <CardHeader>
                         <CardTitle>Recent Drafts</CardTitle>
                     </CardHeader>
@@ -147,14 +152,14 @@ export default function DashboardHome() {
                             <Link
                                 key={i}
                                 href="/dashboard/create"
-                                className="flex items-center gap-4 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 group transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                className="flex items-center gap-4 p-3 rounded-xl bg-muted/30 group transition-all hover:bg-muted/50"
                             >
-                                <div className="w-12 h-12 bg-zinc-200 dark:bg-zinc-800 rounded-lg flex items-center justify-center overflow-hidden relative">
-                                    <Play className="w-4 h-4 text-zinc-400 group-hover:scale-110 transition-transform" />
+                                <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden relative">
+                                    <Play className="w-4 h-4 text-muted-foreground group-hover:scale-110 transition-transform" />
                                 </div>
                                 <div className="flex-1 overflow-hidden">
                                     <p className="text-sm font-semibold truncate">{draft.title}</p>
-                                    <p className="text-xs text-zinc-500">{draft.date}</p>
+                                    <p className="text-xs text-muted-foreground">{draft.date}</p>
                                 </div>
                                 <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider">
                                     {draft.status}
