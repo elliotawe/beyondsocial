@@ -81,7 +81,24 @@ export default function DashboardLayoutShell({
                             ))}
                         </div>
                     </div>
-                    <div>
+                    <div className="mt-auto pt-4 border-t border-sidebar-border/50">
+                        {open && (
+                            <div className="px-4 mb-4 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="flex justify-between items-end">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Credits</p>
+                                    <p className="text-xs font-bold text-primary">{user.credits} / {user.planTier === "free" ? "5" : user.planTier === "pro" ? "50" : "Unlimited"}</p>
+                                </div>
+                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-primary transition-all duration-500"
+                                        style={{ width: `${Math.min(100, (user.credits / (user.planTier === "free" ? 5 : user.planTier === "pro" ? 50 : 100)) * 100)}%` }}
+                                    />
+                                </div>
+                                <p className="text-[9px] text-muted-foreground leading-tight">
+                                    {user.planTier === "free" ? "Upgrade for more power." : "You're on the Pro plan."}
+                                </p>
+                            </div>
+                        )}
                         <SidebarLink
                             link={{
                                 label: user.name || "User",

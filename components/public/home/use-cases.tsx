@@ -42,7 +42,7 @@ export default function UseCases() {
                 </div>
 
                 {/* CTA Section */}
-                <div className="mt-16 bg-gradient-to-r from-secondary/40 via-secondary/20 to-secondary/40 rounded-2xl border border-border/40 p-6 sm:p-12 text-center space-y-6">
+                <div className="mt-16 bg-linear-to-r from-secondary/40 via-secondary/20 to-secondary/40 rounded-2xl border border-border/40 p-6 sm:p-12 text-center space-y-6">
                     <h3 className="text-3xl md:text-4xl font-bold">Ready to transform your content?</h3>
                     <p className="text-muted-foreground text-lg max-w-xl mx-auto">
                         Join thousands of creators and businesses using Beyond to create professional videos

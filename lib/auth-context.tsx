@@ -1,59 +1,77 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { SessionProvider, useSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export type Role = "admin" | "creator" | "viewer";
 
 interface AuthContextType {
-    user: { role: Role; name: string; email: string } | null;
-    login: (role: Role) => void;
-    logout: () => void;
+    user: {
+        role: Role;
+        name: string;
+        email: string;
+        image?: string;
+        credits: number;
+        planTier: string;
+    } | null;
+    login: (provider?: string) => Promise<void>;
+    logout: () => Promise<void>;
     isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<{ role: Role; name: string; email: string } | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+function AuthContextContent({ children }: { children: React.ReactNode }) {
+    const { data: session, status } = useSession();
     const router = useRouter();
+    const [user, setUser] = useState<{
+        role: Role;
+        name: string;
+        email: string;
+        image?: string;
+        credits: number;
+        planTier: string;
+    } | null>(null);
 
     useEffect(() => {
-        // Simulate checking for existing session
-        const savedUser = localStorage.getItem("beyond_user");
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
-        }
-        setIsLoading(false);
-    }, []);
-
-    const login = (role: Role) => {
-        const newUser = {
-            role,
-            name: role.charAt(0).toUpperCase() + role.slice(1) + " User",
-            email: `${role}@example.com`
-        };
-        setUser(newUser);
-        localStorage.setItem("beyond_user", JSON.stringify(newUser));
-
-        if (role === "admin") {
-            router.push("/admin");
+        if (session?.user) {
+            const u = session.user as any;
+            setUser({
+                role: u.role || "creator",
+                name: u.name || "User",
+                email: u.email || "",
+                image: u.image || undefined,
+                credits: u.credits || 0,
+                planTier: u.planTier || "free"
+            });
         } else {
-            router.push("/dashboard");
+            setUser(null);
         }
+    }, [session]);
+
+    const login = async (provider?: string) => {
+        await signIn(provider || "google");
     };
 
-    const logout = () => {
-        setUser(null);
-        localStorage.removeItem("beyond_user");
-        router.push("/login");
+    const logout = async () => {
+        await signOut({ callbackUrl: "/login" });
     };
+
+    const isLoading = status === "loading";
 
     return (
         <AuthContext.Provider value={{ user, login, logout, isLoading }}>
             {children}
         </AuthContext.Provider>
+    );
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+    return (
+        <SessionProvider>
+            <AuthContextContent>{children}</AuthContextContent>
+        </SessionProvider>
     );
 }
 

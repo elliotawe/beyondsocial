@@ -19,8 +19,8 @@ export default function Showcase() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                     {videos.map((video) => (
                         <Card key={video.id} className="border-border/40 overflow-hidden group cursor-pointer">
-                            <div className="aspect-[9/16] bg-gradient-to-br from-secondary/60 via-secondary/40 to-secondary/20 flex items-center justify-center relative">
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                            <div className="aspect-9/16 bg-linear-to-br from-secondary/60 via-secondary/40 to-secondary/20 flex items-center justify-center relative">
+                                <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
                                 <div className="w-12 h-12 rounded-full bg-white/20 group-hover:bg-white/30 flex items-center justify-center transition">
                                     ▶
                                 </div>
