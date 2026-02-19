@@ -13,7 +13,7 @@ import {
     Pie
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge";
 import {
     TrendingUp,
     Users,
@@ -113,8 +113,8 @@ export default function AnalyticsPage() {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {pieData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    {pieData.map((entry) => (
+                                        <Cell key={`cell-${entry.name}`} fill={entry.color} />
                                     ))}
                                 </Pie>
                                 <Tooltip />
@@ -134,7 +134,7 @@ export default function AnalyticsPage() {
                     AI Performance Insight
                 </p>
                 <p className="text-sm text-muted-foreground">
-                    "Your 'Desk Setup' videos are performing 40% better on TikTok compared to Instagram Reels. Consider shifting more production focus to vertical tech aesthetic for TikTok."
+                    &quot;Your &apos;Desk Setup&apos; videos are performing 40% better on TikTok compared to Instagram Reels. Consider shifting more production focus to vertical tech aesthetic for TikTok.&quot;
                 </p>
             </div>
         </div>

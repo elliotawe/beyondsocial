@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import connectDB from "@/lib/db";
 import { User } from "@/models/User";
 import { getAllUsers } from "@/app/actions/admin";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader /*, CardTitle, CardDescription */ } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,11 @@ import {
     Mail,
     Calendar,
     Shield,
-    CreditCard,
+    // CreditCard,
     ArrowUpDown,
     Filter
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { /* cn */ } from "@/lib/utils";
 
 export default async function UserManagementPage() {
     const session = await auth();
@@ -72,7 +72,7 @@ export default async function UserManagementPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border/50">
-                                {users.map((user: any) => (
+                                {users.map((user: { _id: string, name?: string, email: string, planTier: string, role: string, credits: number, createdAt: string }) => (
                                     <tr key={user._id} className="hover:bg-muted/10 transition-colors">
                                         <td className="p-4 text-sm">
                                             <div className="flex items-center space-x-3">

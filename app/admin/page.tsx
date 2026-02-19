@@ -6,8 +6,8 @@ import { getAdminStats, getAllUsers } from "@/app/actions/admin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Users, Video, Activity, ShieldCheck, Mail, Calendar, TrendingUp } from "lucide-react";
+// import { Progress } from "@/components/ui/progress";
+import { Users, Video, Activity, ShieldCheck, /* Mail, Calendar, */ TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default async function AdminOverview() {
@@ -74,7 +74,7 @@ export default async function AdminOverview() {
                     </CardHeader>
                     <CardContent>
                         <div className="divide-y divide-border -mt-4">
-                            {users.slice(0, 6).map((user: any) => (
+                            {users.slice(0, 6).map((user: { _id: string, name?: string, email: string, planTier: string, credits: number }) => (
                                 <div key={user._id} className="py-3 flex items-center justify-between">
                                     <div className="flex items-center space-x-3">
                                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
@@ -106,7 +106,7 @@ export default async function AdminOverview() {
                         <CardDescription>Last 5 background tasks.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {stats.recentJobs.map((job: any) => (
+                        {stats.recentJobs.map((job: { _id: string, type: string, createdAt: string, status: string }) => (
                             <div key={job._id} className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border/50">
                                 <div className="space-y-1">
                                     <p className="text-xs font-semibold capitalize">{job.type.replace('_', ' ')}</p>

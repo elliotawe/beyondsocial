@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+// import { auth } from "@/auth";
 import { getProjectById } from "@/app/actions/projects";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     }
 
     return (
-        <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-8">
+        <div className="space-y-8">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" asChild>
                     <Link href="/dashboard/projects">
@@ -104,7 +104,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
                                         <Badge variant="secondary">Tone: {project.script.tone}</Badge>
                                     </div>
                                     <div className="space-y-4 mt-4">
-                                        {project.script.scenes.map((scene: any) => (
+                                        {project.script.scenes.map((scene: { scene_id: number; duration_seconds: number; script: string; visual_direction: string }) => (
                                             <div key={scene.scene_id} className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
                                                 <div className="flex justify-between font-semibold text-xs uppercase text-muted-foreground">
                                                     <span>Scene {scene.scene_id}</span>

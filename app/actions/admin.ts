@@ -38,7 +38,7 @@ export async function getAdminStats() {
         totalProjects,
         totalJobs,
         activeUsers,
-        recentJobs: recentJobs.map((j: any) => ({
+        recentJobs: recentJobs.map((j: { _id: { toString: () => string }, type: string, status: string, createdAt: { coachingat?: string, isostring: () => string, toISOString: () => string } }) => ({
             _id: j._id.toString(),
             type: j.type,
             status: j.status,
@@ -52,7 +52,7 @@ export async function getAllUsers() {
 
     const users = await User.find().sort({ createdAt: -1 }).lean();
 
-    return users.map((u: any) => ({
+    return users.map((u: { _id: { toString: () => string }, name?: string, email: string, planTier: string, credits: number, role: string, createdAt: { toISOString: () => string } }) => ({
         _id: u._id.toString(),
         name: u.name,
         email: u.email,

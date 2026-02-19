@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import { Schema, model, models } from "mongoose";
 
 const UserSchema = new Schema(
     {
@@ -17,6 +17,17 @@ const UserSchema = new Schema(
         // NextAuth Fields
         accounts: [{ type: Schema.Types.ObjectId, ref: "Account" }],
         sessions: [{ type: Schema.Types.ObjectId, ref: "Session" }],
+
+        // Settings & Preferences
+        settings: {
+            autoHashtags: { type: Boolean, default: true },
+            smartCaptionLength: { type: Boolean, default: true },
+            experimentalVideoStyles: { type: Boolean, default: false },
+            notifications: {
+                email: { type: Boolean, default: true },
+                push: { type: Boolean, default: true }
+            }
+        }
     },
     { timestamps: true }
 );

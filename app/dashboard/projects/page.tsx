@@ -1,18 +1,34 @@
-import { auth } from "@/auth";
+// import Image from "next/image";
+import Image from "next/image";
+// import { auth } from "@/auth";
 import { getUserProjects } from "@/app/actions/projects";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+    Card, CardContent,
+    // CardHeader, CardTitle, CardDescription, CardFooter 
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Play, Calendar, Film, Image as ImageIcon } from "lucide-react";
+import {
+    // Play, 
+    Calendar, Film, Image as ImageIcon
+} from "lucide-react";
+
+interface Project {
+    _id: string;
+    title: string;
+    thumbnail?: string;
+    status: string;
+    createdAt: string;
+}
 
 export default async function ProjectsPage() {
-    const session = await auth();
+    // const session = await auth();
     const projects = await getUserProjects();
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto p-4 md:p-8">
+        <div className="space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit">My Projects</h1>
@@ -43,15 +59,17 @@ export default async function ProjectsPage() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {projects.map((project: any) => (
+                    {projects.map((project: Project) => (
                         <Link key={project._id} href={`/dashboard/projects/${project._id}`} className="group block">
                             <Card className="overflow-hidden border-border/60 hover:border-primary/50 transition-colors h-full flex flex-col">
                                 <div className="aspect-video bg-muted relative overflow-hidden">
                                     {project.thumbnail ? (
-                                        <img
+                                        <Image
                                             src={project.thumbnail}
                                             alt={project.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            width={48}
+                                            height={48}
+                                            className="w-12 h-12 rounded-xl object-cover border border-border/50"
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center">

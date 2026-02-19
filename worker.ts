@@ -1,11 +1,13 @@
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
-import redis from "./lib/redis";
 import connectDB from "./lib/db";
 import { Job } from "./models/Job";
 import { Project } from "./models/Project";
-import { refineVideoIdea, generateWanVideo, getWanVideoStatus } from "./app/actions/ai-video";
+import {
+    // refineVideoIdea, 
+    getWanVideoStatus
+} from "./app/actions/ai-video";
 // Note: We might need to refactor actions to be pure functions if they rely on "use server" context which might not work in standalone worker easily without build. 
 // However, since they are just functions, it should be fine if we import the logic or move logic to a shared lib.
 // Check app/actions/ai-video.ts content. It has "use server" at top.
@@ -16,94 +18,68 @@ import { postVideoToSocial } from "./lib/social-service";
 import { fetchProjectAnalytics } from "./lib/analytics-service";
 
 async function startWorker() {
-    console.log("Worker started...");
+    console.log("Worker started (MongoDB Only Mode)...");
     await connectDB();
+
+    // Start status sync loop in background
+    startStatusSyncLoop();
 
     // Start scheduler loop in background
     startScheduler();
 
     // Start analytics loop in background
     startAnalyticsLoop();
-
-    while (true) {
-        try {
-            // Blocking pop from Redis list "jobs"
-            // redis.blpop returns [key, value]
-            const result = await redis.blpop("jobs", 0);
-            if (result) {
-                const jobData = JSON.parse(result[1]);
-                console.log("Processing job:", jobData.id);
-                await processJob(jobData);
-            }
-        } catch (error) {
-            console.error("Worker error:", error);
-            // Sleep a bit on crucial error to avoid tight loop
-            await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-    }
 }
 
-async function processJob(jobMsg: { id: string }) {
-    const job = await Job.findById(jobMsg.id);
-    if (!job) return;
+/**
+ * Polls Wan AI for tasks associated with projects in "processing" status
+ */
+async function startStatusSyncLoop() {
+    console.log("Status sync loop started...");
+    while (true) {
+        try {
+            const processingProjects = await Project.find({
+                status: "processing",
+                taskId: { $exists: true, $ne: null }
+            });
 
-    job.status = "processing";
-    await job.save();
+            if (processingProjects.length > 0) {
+                console.log(`[StatusSync] Checking ${processingProjects.length} processing projects.`);
+                for (const project of processingProjects) {
+                    try {
+                        const res = await getWanVideoStatus(project.taskId);
+                        if (res.status === "SUCCEEDED" && res.videoUrl) {
+                            console.log(`[StatusSync] Project ${project._id} SUCCEEDED.`);
+                            project.status = "completed";
+                            project.generatedVideoUrl = res.videoUrl;
+                            await project.save();
 
-    try {
-        if (job.type === "video_generation") {
-            // Logic: 
-            // 1. Check if we need to refine script or if it's already refined
-            // 2. Call Wan AI
-            // 3. Poll Wan AI (or pushing a polling job? keeping it simple for now)
-            // The PRD says: "Responsibility: Handle async jobs...".
-            // If Wan AI is async, we trigger it, get a Task ID, and then we need to poll it.
-            // We can use a different approach: trigger -> save taskID -> put "poll_job" back into queue with delay?
-            // Or just simple polling loop here if it's < few mins.
+                            // Update associated Job record if exists
+                            await Job.findOneAndUpdate(
+                                { "payload.projectId": project._id, type: "video_generation" },
+                                { status: "completed", result: { videoUrl: res.videoUrl } }
+                            );
+                        } else if (res.status === "FAILED") {
+                            console.log(`[StatusSync] Project ${project._id} FAILED.`);
+                            project.status = "failed";
+                            await project.save();
 
-            const { projectId, imageUrl, prompt } = job.payload;
-
-            // Trigger generation
-            const { taskId } = await generateWanVideo(imageUrl, prompt);
-
-            // Update Project with Task ID
-            await Project.findByIdAndUpdate(projectId, { taskId, status: "processing" });
-
-            // We need to poll now. 
-            // Ideally: Add a refined job to the queue "poll_wan_video" with taskId
-            // For simplicity/v1: Poll here (blocking this worker thread) or use scheduled checks.
-            // Let's block for now (simple, but limits concurrency).
-
-            let status = "PENDING";
-            let videoUrl = null;
-            let retries = 0;
-            while (status !== "SUCCEEDED" && status !== "FAILED" && retries < 60) { // 3 mins max
-                await new Promise(r => setTimeout(r, 3000));
-                const res = await getWanVideoStatus(taskId);
-                status = res.status;
-                videoUrl = res.videoUrl;
-                retries++;
+                            await Job.findOneAndUpdate(
+                                { "payload.projectId": project._id, type: "video_generation" },
+                                { status: "failed", error: res.message || "Wan AI Generation Failed" }
+                            );
+                        }
+                        // If PENDING/RUNNING, just wait for next loop
+                    } catch (err: unknown) {
+                        console.error(`[StatusSync] Error checking project ${project._id}:`, err);
+                    }
+                }
             }
-
-            if (status === "SUCCEEDED" && videoUrl) {
-                await Project.findByIdAndUpdate(projectId, {
-                    status: "completed",
-                    generatedVideoUrl: videoUrl
-                });
-                job.status = "completed";
-                job.result = { videoUrl };
-            } else {
-                throw new Error("Video generation timed out or failed: " + status);
-            }
+        } catch (error) {
+            console.error("Status sync loop error:", error);
         }
-        await job.save();
-    } catch (e: any) {
-        console.error("Job failed", e);
-        job.status = "failed";
-        job.error = e.message;
-        await job.save();
-
-        await Project.findByIdAndUpdate(job.payload.projectId, { status: "failed" });
+        // Poll every 10 seconds for efficiency (since frontend also has an accelerator poll)
+        await new Promise(resolve => setTimeout(resolve, 10000));
     }
 }
 
@@ -164,8 +140,9 @@ async function startScheduler() {
                         await project.save();
                         job.result = results;
                         await job.save();
-                    } catch (err: any) {
-                        console.error(`[Scheduler] Error processing project ${project._id}:`, err);
+                    } catch (err: unknown) {
+                        const message = err instanceof Error ? err.message : "Unknown error";
+                        console.error(`[Scheduler] Error processing project ${project._id}:`, message);
                         project.socialStatus = "failed";
                         await project.save();
                     }

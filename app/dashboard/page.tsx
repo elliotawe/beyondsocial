@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { auth } from "@/auth";
 import { getUserProjects } from "@/app/actions/projects";
 import { cn } from "@/lib/utils";
@@ -8,7 +9,6 @@ import Link from "next/link";
 import {
     Video,
     Calendar,
-    TrendingUp,
     Users,
     ArrowUpRight,
     Plus,
@@ -17,19 +17,32 @@ import {
 } from "lucide-react";
 import { AnalyticsChart } from "@/components/dashboard/analytics-view";
 
+interface Project {
+    _id: string;
+    title: string;
+    thumbnail?: string;
+    status: string;
+    socialStatus: string;
+    createdAt: string;
+    analytics?: {
+        views?: number;
+        engagement?: number;
+    };
+}
+
 export default async function DashboardHome() {
     const session = await auth();
     const user = session?.user;
     const projects = await getUserProjects();
 
     // Calculate real stats
-    const totalViews = projects.reduce((acc: number, p: any) => acc + (p.analytics?.views || 0), 0);
-    const totalEngagement = projects.reduce((acc: number, p: any) => acc + (p.analytics?.engagement || 0), 0);
-    const avgEngagementRate = totalViews > 0 ? (totalEngagement / totalViews * 100).toFixed(1) : "0";
-    const scheduledCount = projects.filter((p: any) => p.socialStatus === "scheduled").length;
+    const totalViews = projects.reduce((acc: number, p: Project) => acc + (p.analytics?.views || 0), 0);
+    // const totalEngagement = projects.reduce((acc: number, p: Project) => acc + (p.analytics?.engagement || 0), 0);
+    // const avgEngagementRate = totalViews > 0 ? (totalEngagement / totalViews * 100).toFixed(1) : "0";
+    const scheduledCount = projects.filter((p: Project) => p.socialStatus === "scheduled").length;
 
     const stats = [
-        { title: "Remaining Credits", value: (user as any)?.credits?.toString() || "0", icon: Activity, trend: "Monthly", color: "text-amber-500" },
+        { title: "Remaining Credits", value: (user as { credits?: number | string })?.credits?.toString() || "0", icon: Activity, trend: "Monthly", color: "text-amber-500" },
         { title: "Videos created", value: projects.length.toString(), icon: Video, trend: "All Time" },
         { title: "Scheduled posts", value: scheduledCount.toString(), icon: Calendar, trend: scheduledCount > 0 ? "Upcoming" : "None" },
         { title: "Total views", value: totalViews.toLocaleString(), icon: Users, trend: "Across Platforms" },
@@ -37,23 +50,23 @@ export default async function DashboardHome() {
 
     // Prepare chart data (top 5 recent posted projects)
     const chartData = projects
-        .filter((p: any) => p.socialStatus === "posted")
+        .filter((p: Project) => p.socialStatus === "posted")
         .slice(0, 5)
         .reverse()
-        .map((p: any) => ({
+        .map((p: Project) => ({
             name: p.title.length > 10 ? p.title.substring(0, 10) + "..." : p.title,
             views: p.analytics?.views || 0,
             engagement: p.analytics?.engagement || 0,
         }));
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit truncate max-w-[300px]">
                         Welcome back, {user?.name?.split(' ')[0] || "Creator"}
                     </h1>
-                    <p className="text-muted-foreground">Here's what's happening with your social accounts today.</p>
+                    <p className="text-muted-foreground">Here&apos;s what&apos;s happening with your social accounts today.</p>
                 </div>
                 <Button asChild className="rounded-xl shadow-lg shadow-primary/20">
                     <Link href="/dashboard/create">
@@ -64,7 +77,7 @@ export default async function DashboardHome() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat, index) => (
+                {stats.map((stat) => (
                     <Card key={stat.title} className="border border-border shadow-sm overflow-hidden relative">
                         <CardContent className="p-6">
                             <div className="flex justify-between items-start mb-4">
@@ -101,7 +114,7 @@ export default async function DashboardHome() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {projects.length > 0 ? (
-                            projects.map((project: any) => (
+                            projects.map((project: Project) => (
                                 <Link
                                     key={project._id}
                                     href={`/dashboard/projects/${project._id}`}
@@ -109,7 +122,7 @@ export default async function DashboardHome() {
                                 >
                                     <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden relative">
                                         {project.thumbnail ? (
-                                            <img src={project.thumbnail} alt={project.title} className="w-full h-full object-cover" />
+                                            <Image src={project.thumbnail} alt={project.title} className="w-full h-full object-cover" width={48} height={48} />
                                         ) : (
                                             <Play className="w-4 h-4 text-muted-foreground group-hover:scale-110 transition-transform" />
                                         )}

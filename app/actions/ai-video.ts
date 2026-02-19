@@ -2,16 +2,13 @@
 
 import * as aiService from "@/lib/ai-service";
 import connectDB from "@/lib/db";
-import redis from "@/lib/redis";
 import { Project } from "@/models/Project";
 import { Job } from "@/models/Job";
 import { User } from "@/models/User";
 import { auth } from "@/auth";
-import { RefinedScript } from "@/lib/ai-service";
+// import type { RefinedScript } from "@/lib/ai-service";
 
-export type { RefinedScript }; // Re-export for frontend usage
-
-export async function refineVideoIdea(idea: string, style?: string, tone?: string) {
+export async function refineVideoIdea(idea: string, style?: string, tone?: string, industry?: string, realEstateMode?: boolean) {
     const session = await auth();
     let userId = undefined;
 
@@ -21,10 +18,10 @@ export async function refineVideoIdea(idea: string, style?: string, tone?: strin
         if (user) userId = user._id.toString();
     }
 
-    return aiService.refineVideoIdea(idea, style, tone, userId);
+    return aiService.refineVideoIdea(idea, style, tone, userId, industry, realEstateMode);
 }
 
-export async function createVideoGenerationJob(imageUrl: string, prompt: string, scriptData: any) {
+export async function createVideoGenerationJob(imageUrl: string, prompt: string, scriptData: Record<string, unknown>) {
     const session = await auth();
     if (!session?.user?.email) {
         throw new Error("Unauthorized");
@@ -33,7 +30,7 @@ export async function createVideoGenerationJob(imageUrl: string, prompt: string,
     await connectDB();
 
     // Find user (using email for now as auth provider might not map ID perfectly yet)
-    let user = await User.findOne({ email: session.user.email });
+    const user = await User.findOne({ email: session.user.email });
 
     // If user doesn't exist in our DB yet (first login via standard NextAuth), create them or throw?
     // NextAuth MongoDB adapter should have created them. 
@@ -55,28 +52,48 @@ export async function createVideoGenerationJob(imageUrl: string, prompt: string,
     const project = await Project.create({
         userId: user._id,
         title: scriptData.roughIdea || "Untitled Video",
-        status: "processing", // Or 'queued'
+        status: "processing",
         roughIdea: scriptData.roughIdea,
         script: scriptData,
         uploadedImages: [imageUrl],
     });
 
-    // Create Job
-    const job = await Job.create({
-        userId: user._id,
-        type: "video_generation",
-        status: "pending",
-        payload: {
-            projectId: project._id,
-            imageUrl,
-            prompt
-        }
-    });
+    try {
+        // Submit directly to Wan AI
+        const { taskId } = await aiService.generateWanVideo(imageUrl, prompt);
 
-    // Push to Redis
-    await redis.rpush("jobs", JSON.stringify({ id: job._id }));
+        // Update project with taskId
+        project.taskId = taskId;
+        await project.save();
 
-    return { projectId: project._id.toString(), jobId: job._id.toString() };
+        // Create Job record for history/tracking (optional, but good for visibility)
+        await Job.create({
+            userId: user._id,
+            type: "video_generation",
+            status: "processing",
+            payload: {
+                projectId: project._id,
+                imageUrl,
+                prompt
+            },
+            providerTaskId: taskId
+        });
+
+        return {
+            projectId: project._id.toString(),
+            taskId
+        };
+    } catch (err: unknown) {
+        // Fallback: Credit reversal if submission fails
+        user.credits += 1;
+        await user.save();
+
+        project.status = "failed";
+        await project.save();
+
+        const message = err instanceof Error ? err.message : "Failed to submit video task.";
+        throw new Error(message);
+    }
 }
 
 export async function getProjectStatus(projectId: string) {
@@ -86,19 +103,49 @@ export async function getProjectStatus(projectId: string) {
 
     await connectDB();
 
-    const project = await Project.findById(projectId);
+    const project = await Project.findById(projectId).lean();
     if (!project) throw new Error("Project not found");
 
     // Enforce ownership check
-    const user = await User.findOne({ email: session.user.email });
+    const user = await User.findOne({ email: session.user.email }).lean();
     if (!user || project.userId.toString() !== user._id.toString()) {
         throw new Error("Forbidden: You do not own this project.");
     }
 
+    // Direct status check as a fallback/accelerator for the UI poll
+    if (project.status === "processing" && project.taskId) {
+        try {
+            const wanStatus = await aiService.getWanVideoStatus(project.taskId);
+            if (wanStatus.status === "SUCCEEDED" && wanStatus.videoUrl) {
+                await Project.findByIdAndUpdate(projectId, {
+                    status: "completed",
+                    generatedVideoUrl: wanStatus.videoUrl
+                });
+                return {
+                    status: "completed",
+                    videoUrl: wanStatus.videoUrl,
+                    script: project.script,
+                    taskId: project.taskId
+                };
+            } else if (wanStatus.status === "FAILED") {
+                await Project.findByIdAndUpdate(projectId, { status: "failed" });
+                return {
+                    status: "failed",
+                    videoUrl: project.generatedVideoUrl,
+                    script: project.script,
+                    taskId: project.taskId
+                };
+            }
+        } catch (err) {
+            console.error("Direct poll failed", err);
+        }
+    }
+
     return {
         status: project.status,
-        videoUrl: project.generatedVideoUrl,
-        script: project.script
+        videoUrl: project.generatedVideoUrl || null,
+        script: project.script ? JSON.parse(JSON.stringify(project.script)) : null,
+        taskId: project.taskId || null
     };
 }
 

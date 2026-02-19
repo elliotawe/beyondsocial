@@ -18,7 +18,7 @@ export function AnalyticsChart({ data }: AnalyticsChartProps) {
     if (data.length === 0) {
         return (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-                No analytics data available for "posted" videos.
+                No analytics data available for &quot;posted&quot; videos.
             </div>
         );
     }

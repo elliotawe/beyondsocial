@@ -11,7 +11,7 @@ export default auth((req) => {
     const isOnLogin = req.nextUrl.pathname.startsWith("/login")
 
     if (isOnAdmin) {
-        if (isLoggedIn && (req.auth?.user as any)?.role === "admin") return NextResponse.next()
+        if (isLoggedIn && (req.auth?.user as { role?: string })?.role === "admin") return NextResponse.next()
         if (isLoggedIn) return NextResponse.redirect(new URL("/dashboard", req.nextUrl))
         return NextResponse.redirect(new URL("/login", req.nextUrl))
     }

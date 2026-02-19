@@ -1,6 +1,8 @@
-import { auth } from "@/auth";
+// import { auth } from "@/auth";
+// import { auth } from "@/auth";
 import { getCalendarEvents } from "@/app/actions/projects";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,12 +22,20 @@ import {
     eachDayOfInterval,
     isSameMonth,
     isSameDay,
-    addMonths,
-    subMonths
+    // addMonths,
+    // subMonths
 } from "date-fns";
 
+interface CalendarEvent {
+    _id: string;
+    title: string;
+    date: Date;
+    status: string;
+    thumbnail: string | null;
+}
+
 export default async function ContentCalendarPage() {
-    const session = await auth();
+    // const session = await auth();
     const events = await getCalendarEvents();
 
     const today = new Date();
@@ -86,7 +96,7 @@ export default async function ContentCalendarPage() {
                     </div>
                     <div className="grid grid-cols-7">
                         {calendarDays.map((day, idx) => {
-                            const dayEvents = events.filter((e: any) => isSameDay(new Date(e.date), day));
+                            const dayEvents = events.filter((e: CalendarEvent) => isSameDay(e.date, day));
                             const isToday = isSameDay(day, today);
                             const isCurrentMonth = isSameMonth(day, monthStart);
 
@@ -103,7 +113,7 @@ export default async function ContentCalendarPage() {
                                         </span>
                                     </div>
                                     <div className="space-y-1">
-                                        {dayEvents.map((event: any) => (
+                                        {dayEvents.map((event: CalendarEvent) => (
                                             <Link
                                                 key={event._id}
                                                 href={`/dashboard/projects/${event._id}`}
@@ -113,6 +123,15 @@ export default async function ContentCalendarPage() {
                                                     <div className={`w-1.5 h-1.5 rounded-full ${event.status === "posted" ? "bg-emerald-500" : "bg-blue-500"
                                                         }`} />
                                                     <span className="truncate group-hover:text-primary">{event.title}</span>
+                                                    {event.thumbnail && ( // Conditionally render Image if thumbnail exists
+                                                        <Image
+                                                            src={event.thumbnail}
+                                                            alt={event.title}
+                                                            width={32}
+                                                            height={32}
+                                                            className="w-8 h-8 rounded-lg object-cover border border-border/50"
+                                                        />
+                                                    )}
                                                 </div>
                                             </Link>
                                         ))}
@@ -130,15 +149,15 @@ export default async function ContentCalendarPage() {
                         <CardTitle>Upcoming Schedule</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {events.filter((e: any) => new Date(e.date) >= today && e.status === "scheduled").length > 0 ? (
+                        {events.filter((e: CalendarEvent) => e.date >= today && e.status === "scheduled").length > 0 ? (
                             events
-                                .filter((e: any) => new Date(e.date) >= today && e.status === "scheduled")
-                                .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                                .map((event: any) => (
+                                .filter((e: CalendarEvent) => e.date >= today && e.status === "scheduled")
+                                .sort((a: CalendarEvent, b: CalendarEvent) => a.date.getTime() - b.date.getTime())
+                                .map((event: CalendarEvent) => (
                                     <div key={event._id} className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
                                         <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
                                             {event.thumbnail ? (
-                                                <img src={event.thumbnail} className="w-full h-full object-cover" />
+                                                <Image src={event.thumbnail} className="w-full h-full object-cover" alt={event.title} width={48} height={48} />
                                             ) : (
                                                 <Play className="w-4 h-4 text-muted-foreground" />
                                             )}
@@ -146,7 +165,7 @@ export default async function ContentCalendarPage() {
                                         <div className="flex-1">
                                             <p className="text-sm font-semibold">{event.title}</p>
                                             <p className="text-xs text-muted-foreground">
-                                                {format(new Date(event.date), "EEE, MMM d 'at' h:mm a")}
+                                                {format(event.date, "EEE, MMM d '&apos;at&apos;' h:mm a")}
                                             </p>
                                         </div>
                                         <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">
@@ -187,7 +206,7 @@ export default async function ContentCalendarPage() {
                         </div>
                         <div className="pt-4 border-t">
                             <p className="text-xs text-muted-foreground italic">
-                                "Smart timing is automatically applied to your scheduled posts for maximum reach."
+                                &quot;Smart timing is automatically applied to your scheduled posts for maximum reach.&quot;
                             </p>
                         </div>
                     </CardContent>

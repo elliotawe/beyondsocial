@@ -9,22 +9,27 @@ export default {
         }),
     ],
     callbacks: {
+        /* eslint-disable @typescript-eslint/no-explicit-any */
         async session({ session, token }: { session: any; token: any }) {
             if (token && session.user) {
-                session.user.id = token.sub as string;
-                session.user.role = token.role;
-                session.user.credits = token.credits;
-                session.user.planTier = token.planTier;
+                const s = session as { user: { id?: string; role?: string; credits?: number; planTier?: string } };
+                s.user.id = (token.sub as string) || "";
+                s.user.role = (token.role as string) || "creator";
+                s.user.credits = (token.credits as number) || 0;
+                s.user.planTier = (token.planTier as string) || "free";
             }
             return session;
         },
-        async jwt({ token, user }) {
+        async jwt({ token, user }: { token: Record<string, unknown>; user?: unknown }) {
             if (user) {
-                token.role = (user as any).role || "user";
-                token.credits = (user as any).credits || 0;
-                token.planTier = (user as any).planTier || "free";
+                const t = token as { role?: string; credits?: number; planTier?: string };
+                const u = user as { role?: string; credits?: number; planTier?: string };
+                t.role = u.role || "creator";
+                t.credits = u.credits || 0;
+                t.planTier = u.planTier || "free";
             }
             return token;
         }
+        /* eslint-enable @typescript-eslint/no-explicit-any */
     },
 } satisfies NextAuthConfig

@@ -15,8 +15,12 @@ export async function uploadImage(file: string): Promise<string> {
             folder: "beyond-social",
         });
         return uploadResponse.secure_url;
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Cloudinary upload error:", error);
-        throw new Error("Failed to upload image to Cloudinary");
+        // @ts-expect-error - cloudinary error object shape
+        if (error?.http_code === 502 || error?.message?.includes("502")) {
+            throw new Error("Server timeout: The image size or complexity exceeds the current processing limits. Please try a smaller file.");
+        }
+        throw new Error("Failed to upload image to Cloudinary. Please ensure the file is a valid image.");
     }
 }

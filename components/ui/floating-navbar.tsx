@@ -25,7 +25,7 @@ export const FloatingNav = ({
       )}
     >
       <Logo className="h-8 sm:h-10 md:h-12 w-auto" />
-      {navItems.map((navItem: any, idx: number) => (
+      {navItems.map((navItem, idx: number) => (
         <a
           key={`link=${idx}`}
           href={navItem.link}

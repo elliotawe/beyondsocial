@@ -1,7 +1,7 @@
 "use client";
 
 import {
-    MessageCircle,
+    MessageCircle, // Keep MessageCircle for stats and button
     Clock,
     User,
     MoreHorizontal,
@@ -9,9 +9,11 @@ import {
     Filter,
     CheckCircle,
     AlertCircle,
-    Mail
+    // Mail // Mail was imported but not used, and the instruction suggests commenting it out or removing it.
+    // MessageSquare, // New icon suggested, but not used in the current code.
+    // Shield // New icon suggested, but not used in the current code.
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader /*, CardTitle, CardDescription */ } from "@/components/ui/card"; // Keep all Card components as they are used
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";

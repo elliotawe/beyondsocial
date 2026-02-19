@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Clock, Share2, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Share2, /* Check, */ AlertCircle, Loader2 } from "lucide-react";
 import { scheduleProjectPost, cancelProjectSchedule } from "@/app/actions/projects";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -61,8 +61,8 @@ export function ProjectScheduler({
                 platforms,
             });
             setSocialStatus("scheduled");
-        } catch (err: any) {
-            setError(err.message || "Failed to schedule post.");
+        } catch (err: unknown) {
+            setError((err as Error).message || "Failed to schedule post.");
         } finally {
             setIsSaving(false);
         }
@@ -75,8 +75,8 @@ export function ProjectScheduler({
             await cancelProjectSchedule(projectId);
             setSocialStatus("idle");
             setScheduledAt("");
-        } catch (err: any) {
-            setError(err.message || "Failed to cancel schedule.");
+        } catch (err: unknown) {
+            setError((err as Error).message || "Failed to cancel schedule.");
         } finally {
             setIsSaving(false);
         }

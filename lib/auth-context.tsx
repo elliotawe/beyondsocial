@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { SessionProvider, useSession, signIn, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 
 export type Role = "admin" | "creator" | "viewer";
 
@@ -24,30 +24,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function AuthContextContent({ children }: { children: React.ReactNode }) {
     const { data: session, status } = useSession();
-    const router = useRouter();
-    const [user, setUser] = useState<{
-        role: Role;
-        name: string;
-        email: string;
-        image?: string;
-        credits: number;
-        planTier: string;
-    } | null>(null);
+    // const router = useRouter();
+    const user = useMemo(() => {
+        if (!session?.user) return null;
 
-    useEffect(() => {
-        if (session?.user) {
-            const u = session.user as any;
-            setUser({
-                role: u.role || "creator",
-                name: u.name || "User",
-                email: u.email || "",
-                image: u.image || undefined,
-                credits: u.credits || 0,
-                planTier: u.planTier || "free"
-            });
-        } else {
-            setUser(null);
-        }
+        const u = session.user as {
+            role?: Role;
+            name?: string;
+            email?: string;
+            image?: string;
+            credits?: number;
+            planTier?: string;
+        };
+
+        return {
+            role: u.role || "creator",
+            name: u.name || "User",
+            email: u.email || "",
+            image: u.image || undefined,
+            credits: u.credits || 0,
+            planTier: u.planTier || "free"
+        };
     }, [session]);
 
     const login = async (provider?: string) => {

@@ -3,7 +3,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
-import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
+import { Mail, Lock, Loader2 /*, ShieldCheck */ } from "lucide-react";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 export function LoginForm({
   className,
-  ...props
+  /* ...props */
 }: React.ComponentProps<"form">) {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);

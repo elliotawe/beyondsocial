@@ -21,12 +21,24 @@ export async function refineVideoIdea(
     roughIdea: string,
     style?: string,
     tone?: string,
-    userId?: string
+    userId?: string,
+    industry?: string,
+    realEstateMode?: boolean
 ): Promise<RefinedScript> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
         throw new Error("OPENAI_API_KEY is not configured on the server.");
     }
+
+    // Specialized Logic for Real Estate agents
+    let agentContext = "";
+    if (realEstateMode) {
+        agentContext = "This is a Real Estate property tour. " +
+            "The script should include natural insertion points for an AI agent avatar to talk and showcase the home. " +
+            "The scenes should alternate between beautiful property shots and segments where an agent addresses the viewer.";
+    }
+
+    const industryPrompt = industry ? `Industry: ${industry}` : "";
 
     // Fetch successful examples for the learning loop
     let successfulExamplesPrompt = "";
@@ -44,7 +56,7 @@ export async function refineVideoIdea(
 
             if (topProjects.length > 0) {
                 successfulExamplesPrompt = "\nHere are some of your past high-performing scripts for reference:\n" +
-                    topProjects.map((p: any) => JSON.stringify(p.script, null, 2)).join("\n---\n");
+                    topProjects.map((p) => JSON.stringify(p.script, null, 2)).join("\n---\n");
             }
         } catch (err) {
             console.error("AI Learning Loop: Failed to fetch examples", err);
@@ -57,10 +69,11 @@ export async function refineVideoIdea(
     const { text } = await generateText({
         model: openai("gpt-4o-mini"),
         system: "You are a professional social media scriptwriter. Your goal is to turn rough ideas into structured video scripts. " +
-            "You should learn from the provided successful examples if available.",
+            "You should learn from the provided successful examples if available. " + agentContext,
         prompt: `Translate this rough social media video idea into a structured JSON script for a 15-second vertical video.
       
       Rough Idea: "${roughIdea}"
+      ${industryPrompt}
       ${stylePrompt}
       ${tonePrompt}
       ${successfulExamplesPrompt}
@@ -85,7 +98,7 @@ export async function refineVideoIdea(
     try {
         const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
         return JSON.parse(cleanedText);
-    } catch (e) {
+    } catch {
         console.error("Failed to parse AI response:", text);
         throw new Error("The AI returned an invalid script format. Please try again.");
     }
@@ -105,16 +118,16 @@ export async function generateWanVideo(imageUrl: string, prompt: string) {
             "X-DashScope-Async": "enable"
         },
         body: JSON.stringify({
-            model: "wan2.6-i2v",
+            model: "wan2.6-i2v-flash",
             input: {
                 img_url: imageUrl,
                 prompt: prompt
             },
             parameters: {
-                size: "1280*720",
-                duration: 15,
                 resolution: "720P",
+                duration: 10,
                 prompt_extend: true,
+                watermark: true,
                 shot_type: "multi"
             }
         })
@@ -154,6 +167,7 @@ export async function getWanVideoStatus(taskId: string) {
     return {
         status: data.output.task_status,
         videoUrl: data.output.video_url,
-        message: data.output.message
+        message: data.output.message,
+        taskId: data.output.task_id
     };
 }

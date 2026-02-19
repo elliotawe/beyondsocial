@@ -20,16 +20,16 @@ export async function getUserProjects() {
         .limit(10)
         .lean();
 
-    return projects.map((p: any) => ({
-        _id: p._id.toString(),
-        title: p.title,
-        status: p.status,
-        createdAt: p.createdAt.toISOString(),
-        videoUrl: p.generatedVideoUrl || null,
-        thumbnail: p.uploadedImages?.[0] || null,
-        socialStatus: p.socialStatus || "idle",
-        analytics: p.analytics || { views: 0, engagement: 0, shares: 0 },
-        performanceScore: p.performanceScore || 0
+    return projects.map((p: Record<string, unknown>) => ({
+        _id: (p._id as { toString: () => string }).toString(),
+        title: p.title as string,
+        status: p.status as string,
+        createdAt: (p.createdAt as Date).toISOString(),
+        videoUrl: (p.generatedVideoUrl as string) || null,
+        thumbnail: (p.uploadedImages as string[])?.[0] || null,
+        socialStatus: (p.socialStatus as string) || "idle",
+        analytics: (p.analytics as { views: number; engagement: number; shares: number }) || { views: 0, engagement: 0, shares: 0 },
+        performanceScore: (p.performanceScore as number) || 0
     }));
 }
 
@@ -80,14 +80,14 @@ export async function createProjectDraft(data: { title: string; roughIdea: strin
     return { projectId: project._id.toString() };
 }
 
-export async function updateProjectDraft(id: string, data: { script?: any; uploadedImages?: string[] }) {
+export async function updateProjectDraft(id: string, data: { script?: Record<string, unknown>; uploadedImages?: string[] }) {
     const session = await auth();
     if (!session?.user?.email) throw new Error("Unauthorized");
 
     await connectDB();
     const user = await User.findOne({ email: session.user.email });
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (data.script) updateData.script = data.script;
     if (data.uploadedImages) updateData.uploadedImages = data.uploadedImages;
 
@@ -164,11 +164,11 @@ export async function getCalendarEvents() {
         ]
     }).lean();
 
-    return projects.map((p: any) => ({
-        _id: p._id.toString(),
-        title: p.title,
-        date: p.scheduledAt || p.updatedAt, // Use updatedAt as fallback for posted
-        status: p.socialStatus,
-        thumbnail: p.uploadedImages?.[0] || null
+    return projects.map((p: Record<string, unknown>) => ({
+        _id: (p._id as { toString: () => string }).toString(),
+        title: p.title as string,
+        date: (p.scheduledAt as Date) || (p.updatedAt as Date), // Use updatedAt as fallback for posted
+        status: p.socialStatus as string,
+        thumbnail: (p.uploadedImages as string[])?.[0] || null
     }));
 }

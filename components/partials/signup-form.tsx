@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 
 export function SignUpForm({
     className,
-    ...props
+    /* ...props */
 }: React.ComponentProps<"form">) {
     const { login } = useAuth();
     const [isLoading, setIsLoading] = React.useState(false);

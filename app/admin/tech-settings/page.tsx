@@ -4,17 +4,21 @@ import {
     Terminal,
     ShieldAlert,
     Key,
-    Database,
-    Cpu,
-    Globe,
+    // Database,
+    // Cpu,
+    // Globe,
     Zap,
-    RefreshCcw,
+    RefreshCw, // Using RefreshCw instead of RefreshCcw if Ccw is missing
     Copy,
-    ArrowUpRight
+    ArrowUpRight,
+    // Lock,
+    // AlertCircle,
+    // Activity,
+    // Shield
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -83,7 +87,7 @@ export default function TechSettings() {
                                 <span className="text-sm font-bold">12ms</span>
                             </div>
                             <Button className="w-full gap-2 rounded-xl mt-2" variant="outline">
-                                <RefreshCcw className="w-4 h-4" />
+                                <RefreshCw className="w-4 h-4" />
                                 Purge Global Cache
                             </Button>
                         </CardContent>

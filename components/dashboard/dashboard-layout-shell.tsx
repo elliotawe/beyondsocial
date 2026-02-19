@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Logo from "@/components/partials/logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -128,7 +129,7 @@ export default function DashboardLayoutShell({
 
 const Logoo = () => {
     return (
-        <a
+        <Link
             href="/"
             className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-foreground"
         >
@@ -140,17 +141,17 @@ const Logoo = () => {
             >
                 eyond Social
             </motion.span>
-        </a>
+        </Link>
     );
 };
 
 const LogoIcon = () => {
     return (
-        <a
+        <Link
             href="/"
             className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-foreground"
         >
             <Logo className="h-8 w-auto" />
-        </a>
+        </Link>
     );
 };

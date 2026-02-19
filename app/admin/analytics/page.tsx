@@ -1,8 +1,10 @@
 "use client";
 
-import {
+/*
     BarChart,
     Bar,
+*/
+import {
     XAxis,
     YAxis,
     CartesianGrid,
@@ -15,12 +17,12 @@ import {
     Line
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge";
 import {
-    TrendingUp,
+    // TrendingUp,
     Users,
     Video,
-    Share2,
+    // Share2,
     ChevronDown,
     Activity,
     Globe
@@ -143,6 +145,6 @@ export default function PlatformAnalytics() {
     );
 }
 
-function cn(...inputs: any[]) {
+function cn(...inputs: (string | boolean | undefined | null)[]) {
     return inputs.filter(Boolean).join(" ");
 }

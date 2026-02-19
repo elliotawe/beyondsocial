@@ -1,9 +1,3 @@
-/**
- * Mock Social Service
- * This simulates the interface for posting videos to social media platforms.
- * In a real implementation, this would use the TikTok API, Instagram Graph API, etc.
- */
-
 export interface SocialPostResult {
     platform: string;
     success: boolean;
