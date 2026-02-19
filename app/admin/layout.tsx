@@ -1,11 +1,12 @@
 import {
     LayoutDashboard,
     Users,
-    Settings,
+    // Video,
+    BarChart3,
+    // Settings,
     Headset,
     ShieldCheck,
-    ArrowLeft,
-    BarChart3
+    ArrowLeft
 } from "lucide-react";
 import DashboardLayoutShell, { NavLink } from "@/components/dashboard/dashboard-layout-shell";
 

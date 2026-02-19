@@ -20,12 +20,12 @@ export const FloatingNav = ({
   return (
     <div
       className={cn(
-        "flex max-w-[95vw] md:max-w-fit fixed top-4 sm:top-10 inset-x-0 mx-auto border border-border rounded-full bg-background/95 backdrop-blur-sm shadow-lg z-[5000] pr-2 pl-4 sm:pl-8 py-2 items-center justify-center space-x-4 sm:space-x-8 md:space-x-12",
+        "flex max-w-[95vw] md:max-w-fit fixed top-4 sm:top-10 inset-x-0 mx-auto border border-border rounded-full bg-background/95 backdrop-blur-sm shadow-lg z-5000 pr-2 pl-4 sm:pl-8 py-2 items-center justify-center space-x-4 sm:space-x-8 md:space-x-12",
         className
       )}
     >
       <Logo className="h-8 sm:h-10 md:h-12 w-auto" />
-      {navItems.map((navItem: any, idx: number) => (
+      {navItems.map((navItem, idx: number) => (
         <a
           key={`link=${idx}`}
           href={navItem.link}
@@ -40,7 +40,7 @@ export const FloatingNav = ({
       <div>
         <Link href="/login" className="border text-xs sm:text-sm font-medium relative border-border text-foreground px-3 sm:px-4 py-1.5 sm:py-2 rounded-full whitespace-nowrap hover:bg-muted transition-colors">
           <span>Get Started</span>
-          <span className="absolute inset-x-0 w-1/2 mx-auto -bottom-px bg-gradient-to-r from-transparent via-primary to-transparent h-px" />
+          <span className="absolute inset-x-0 w-1/2 mx-auto -bottom-px bg-linear-to-r from-transparent via-primary to-transparent h-px" />
         </Link>
       </div>
     </div>

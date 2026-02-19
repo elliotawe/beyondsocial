@@ -46,7 +46,7 @@ export default function Features() {
                         <Card key={i} className="border-border/40 bg-secondary/10">
                             <CardHeader>
                                 <div className="flex items-start gap-4">
-                                    <CheckCircle2 className="w-5 h-5 text-white mt-1 flex-shrink-0" />
+                                    <CheckCircle2 className="w-5 h-5 text-white mt-1 shrink-0" />
                                     <div>
                                         <CardTitle className="text-lg">{feature.title}</CardTitle>
                                         <CardDescription className="mt-2">{feature.description}</CardDescription>

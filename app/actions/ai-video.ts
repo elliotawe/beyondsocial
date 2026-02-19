@@ -1,133 +1,154 @@
 "use server";
 
-import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import * as aiService from "@/lib/ai-service";
+import connectDB from "@/lib/db";
+import { Project } from "@/models/Project";
+import { Job } from "@/models/Job";
+import { User } from "@/models/User";
+import { auth } from "@/auth";
+// import type { RefinedScript } from "@/lib/ai-service";
 
-export interface RefinedScript {
-    video_style: string;
-    tone: string;
-    scenes: {
-        scene_id: number;
-        role: string;
-        duration_seconds: number;
-        script: string;
-        visual_direction: string;
-    }[];
-    cta: string;
-}
+export async function refineVideoIdea(idea: string, style?: string, tone?: string, industry?: string, realEstateMode?: boolean) {
+    const session = await auth();
+    let userId = undefined;
 
-/**
- * Stage 1: Refine a rough idea into a structured video script using GPT-4o-mini
- */
-export async function refineVideoIdea(roughIdea: string): Promise<RefinedScript> {
-    if (!process.env.OPENAI_API_KEY) {
-        throw new Error("OPENAI_API_KEY is not configured on the server.");
+    if (session?.user?.email) {
+        await connectDB();
+        const user = await User.findOne({ email: session.user.email });
+        if (user) userId = user._id.toString();
     }
 
-    const { text } = await generateText({
-        model: openai("gpt-4o-mini"),
-        system: "You are a professional social media scriptwriter. Your goal is to turn rough ideas into structured video scripts.",
-        prompt: `Translate this rough social media video idea into a structured JSON script for a 15-second vertical video.
-      
-      Rough Idea: "${roughIdea}"
-      
-      Response Format: JSON strictly following this schema:
-      {
-        "video_style": "string",
-        "tone": "string",
-        "scenes": [
-          {
-            "scene_id": number,
-            "role": "hook" | "body" | "cta",
-            "duration_seconds": number,
-            "script": "string",
-            "visual_direction": "string"
-          }
-        ],
-        "cta": "string"
-      }`,
+    return aiService.refineVideoIdea(idea, style, tone, userId, industry, realEstateMode);
+}
+
+export async function createVideoGenerationJob(imageUrl: string, prompt: string, scriptData: Record<string, unknown>) {
+    const session = await auth();
+    if (!session?.user?.email) {
+        throw new Error("Unauthorized");
+    }
+
+    await connectDB();
+
+    // Find user (using email for now as auth provider might not map ID perfectly yet)
+    const user = await User.findOne({ email: session.user.email });
+
+    // If user doesn't exist in our DB yet (first login via standard NextAuth), create them or throw?
+    // NextAuth MongoDB adapter should have created them. 
+    // If using adapter, user.id from session should match _id in DB.
+    if (!user) {
+        // Fallback for safety
+        throw new Error("User not found in database.");
+    }
+
+    if (user.credits < 1) {
+        throw new Error("Insufficient credits. Please upgrade your plan.");
+    }
+
+    // Deduct credit
+    user.credits -= 1;
+    await user.save();
+
+    // Create Project
+    const project = await Project.create({
+        userId: user._id,
+        title: scriptData.roughIdea || "Untitled Video",
+        status: "processing",
+        roughIdea: scriptData.roughIdea,
+        script: scriptData,
+        uploadedImages: [imageUrl],
     });
 
     try {
-        // Strip out any markdown formatting if GPT returns it
-        const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-        return JSON.parse(cleanedText);
-    } catch (e) {
-        console.error("Failed to parse AI response:", text);
-        throw new Error("The AI returned an invalid script format. Please try again.");
-    }
-}
+        // Submit directly to Wan AI
+        const { taskId } = await aiService.generateWanVideo(imageUrl, prompt);
 
-/**
- * Stage 2: Trigger Wan AI 2.1 (Alibaba DashScope) Image-to-Video Generation
- */
-export async function generateWanVideo(imageUrl: string, prompt: string) {
-    const apiKey = process.env.DASHSCOPE_API_KEY;
-    if (!apiKey) {
-        throw new Error("DASHSCOPE_API_KEY is not configured on the server.");
-    }
+        // Update project with taskId
+        project.taskId = taskId;
+        await project.save();
 
-    // For International/Singapore region: https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis
-    const response = await fetch("https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "X-DashScope-Async": "enable" // Enable asynchronous processing
-        },
-        body: JSON.stringify({
-            model: "wan2.6-i2v",
-            input: {
-                img_url: imageUrl,
-                prompt: prompt
+        // Create Job record for history/tracking (optional, but good for visibility)
+        await Job.create({
+            userId: user._id,
+            type: "video_generation",
+            status: "processing",
+            payload: {
+                projectId: project._id,
+                imageUrl,
+                prompt
             },
-            parameters: {
-                size: "1280*720",
-                duration: 15,
-                resolution: "720P",
-                prompt_extend: true,
-                shot_type: "multi"
+            providerTaskId: taskId
+        });
+
+        return {
+            projectId: project._id.toString(),
+            taskId
+        };
+    } catch (err: unknown) {
+        // Fallback: Credit reversal if submission fails
+        user.credits += 1;
+        await user.save();
+
+        project.status = "failed";
+        await project.save();
+
+        const message = err instanceof Error ? err.message : "Failed to submit video task.";
+        throw new Error(message);
+    }
+}
+
+export async function getProjectStatus(projectId: string) {
+    // Check auth
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
+    await connectDB();
+
+    const project = await Project.findById(projectId).lean();
+    if (!project) throw new Error("Project not found");
+
+    // Enforce ownership check
+    const user = await User.findOne({ email: session.user.email }).lean();
+    if (!user || project.userId.toString() !== user._id.toString()) {
+        throw new Error("Forbidden: You do not own this project.");
+    }
+
+    // Direct status check as a fallback/accelerator for the UI poll
+    if (project.status === "processing" && project.taskId) {
+        try {
+            const wanStatus = await aiService.getWanVideoStatus(project.taskId);
+            if (wanStatus.status === "SUCCEEDED" && wanStatus.videoUrl) {
+                await Project.findByIdAndUpdate(projectId, {
+                    status: "completed",
+                    generatedVideoUrl: wanStatus.videoUrl
+                });
+                return {
+                    status: "completed",
+                    videoUrl: wanStatus.videoUrl,
+                    script: project.script,
+                    taskId: project.taskId
+                };
+            } else if (wanStatus.status === "FAILED") {
+                await Project.findByIdAndUpdate(projectId, { status: "failed" });
+                return {
+                    status: "failed",
+                    videoUrl: project.generatedVideoUrl,
+                    script: project.script,
+                    taskId: project.taskId
+                };
             }
-        })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        console.error("Wan AI Submission Error:", data);
-        throw new Error(data.message || "Failed to submit video generation task to Wan AI.");
-    }
-
-    return {
-        taskId: data.output.task_id,
-        status: data.output.task_status
-    };
-}
-
-/**
- * Stage 3: Poll for video generation task status
- */
-export async function getWanVideoStatus(taskId: string) {
-    const apiKey = process.env.DASHSCOPE_API_KEY;
-    if (!apiKey) {
-        throw new Error("DASHSCOPE_API_KEY is not configured.");
-    }
-
-    const response = await fetch(`https://dashscope-intl.aliyuncs.com/api/v1/tasks/${taskId}`, {
-        headers: {
-            "Authorization": `Bearer ${apiKey}`
+        } catch (err) {
+            console.error("Direct poll failed", err);
         }
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data.message || "Failed to check task status.");
     }
 
     return {
-        status: data.output.task_status, // PENDING, RUNNING, SUCCEEDED, FAILED
-        videoUrl: data.output.video_url,
-        message: data.output.message
+        status: project.status,
+        videoUrl: project.generatedVideoUrl || null,
+        script: project.script ? JSON.parse(JSON.stringify(project.script)) : null,
+        taskId: project.taskId || null
     };
 }
+
+// Keep legacy export for temporary compatibility or direct calling if needed
+export const generateWanVideo = aiService.generateWanVideo;
+export const getWanVideoStatus = aiService.getWanVideoStatus;

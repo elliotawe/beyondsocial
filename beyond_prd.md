@@ -1,173 +1,238 @@
-# Beyond – Product Requirements Document (PRD)
+# **Project Brief: Beyond Social Media Marketing**
 
-## Product Name
-**Beyond**
+## **Overview**
 
-## Overview
-Beyond is a subscription-based AI social media tool that enables users to generate realistic short-form social videos using AI, refine them with an in-browser editor, and publish them with optimized captions, hashtags, and scheduling — all from a single dashboard.
+**Beyond Social Media Marketing** is an AI-powered video creation, optimization, and scheduling platform designed to help businesses consistently produce high-performing social media content with minimal effort.
 
----
-
-## Routing & Access Model
-
-- `/` → Public landing page  
-- `/login` → Authentication (mini landing + login)  
-- `/dashboard` → Authenticated app root  
-- `/dashboard/*` → All product features  
-
-Unauthenticated users can only access `/` and `/login`. All AI functionality requires authentication and an active subscription.
+The platform combines **AI scripting, video generation, voice cloning, editing, analytics, and automated posting** into one end-to-end workflow—built specifically for industry-specific performance and engagement growth.
 
 ---
 
-## Subscription & Pricing Model
+## **Target Users**
 
-- Monthly subscription plans
-- Each plan includes a fixed number of video credits
-- Credits reset monthly
-- 1 credit = 1 video generation
-- Stripe used for billing
-
----
-
-## Core User Flow
-
-1. User signs up / logs in
-2. User enters dashboard
-3. User creates a new video project
-4. User inputs rough idea + uploads images
-5. AI refines script (GPT-4.1)
-6. Video is generated (Wan AI 2.6)
-7. User edits video in-browser
-8. Captions, hashtags, and schedule are generated
-9. User downloads or schedules video
+* Property agents
+* Engineers & technical firms
+* Food & beverage brands
+* SMEs & personal brands
+* Marketing teams & agencies
+* Content creators with limited time or skills
 
 ---
 
-## AI Refinement Engine
+## **Monetization & Plans**
 
-**Model:** GPT-4.1 (OpenAI)
+### **Subscription Model**
 
-**Purpose:** Convert rough user ideas into structured, social-optimized video instructions.
+Each plan includes:
 
-### Output Schema (JSON)
-```json
-{
-  "video_style": "ugc_talking_head",
-  "tone": "casual",
-  "scenes": [
-    {
-      "scene_id": 1,
-      "role": "hook",
-      "duration_seconds": 3,
-      "script": "Relatable hook",
-      "visual_direction": "Vertical, natural lighting"
-    }
-  ],
-  "cta": "Link in bio"
-}
-```
+* **Monthly video generation limit** (e.g., Plan A = 10 videos/month)
+* Access to AI tools, editor, scheduler, analytics
+* Platform dashboard access (login + password)
 
----
+### **Overage & Upsells**
 
-## Video Generation Engine
+* Pay-per-video when exceeding plan limit
+* Plan upgrades
+* Add-ons:
 
-**Model:** Wan AI 2.6  
-**Mode:** Image-to-video  
-**Max Length:** 15 seconds  
-**Aspect Ratio:** 9:16 (vertical)
+  * Voice cloning
+  * Advanced analytics
+  * Additional social channels
+  * Extra storage
 
-### Internal Cost Reference
-- 720p: $0.10 / second  
-- 1080p: $0.15 / second  
+### **Payments**
 
-Credits are deducted before generation begins.
+* Stripe
+* Apple Pay
+* Google Pay
 
 ---
 
-## Video Orchestration
+## **Admin / User Dashboard**
 
-Job states:
-```
-CREATED → REFINING → GENERATING → COMPLETE → FAILED
-```
+### **Key Metrics**
 
-Responsibilities:
-- Accept GPT-4.1 structured output
-- Convert scenes into Wan AI-compatible requests
-- Handle async jobs, retries, and failures
+Users can view:
 
----
+* Total videos created
+* Videos remaining in current billing cycle
+* Total reach
+* Total engagement
+* Scheduled posts (calendar view)
 
-## In-Browser Editor
+### **UX Priority**
 
-Features:
-- Timeline-based trimming
-- Scene reordering
-- Caption editing
-- Auto subtitles
-- Scene regeneration
-
-Rules:
-- Full regeneration consumes credit
-- Caption edits are free
+* **“Create New Video” button is prominent and always visible**
 
 ---
 
-## Captions & Hashtags
+## **Video Creation Workflow**
 
-Generated automatically using GPT-4.1 (or mini variant).
+### **1. Industry & Video Type Selection**
 
-```json
-{
-  "caption": "Short engaging caption",
-  "hashtags": ["#ugc", "#smallbusiness", "#ai"]
-}
-```
+Users select:
 
----
+* Industry (e.g., Property Agent, Engineering, Food & Beverage)
+* Video type:
 
-## Scheduling & Optimization
+  * AI-generated from scratch
+  * Image-based video
+  * Video-based remix
+  * Mixed media (uploaded + AI)
 
-- AI recommends best posting times
-- Platform-specific optimization
-- Initial support for TikTok, Instagram, Facebook
+### **2. AI Prompt Guidance**
 
----
-
-## Backend & Infrastructure
-
-- Supabase (Postgres + Auth)
-- Stripe (subscriptions)
-- VPS hosting (client-provided)
-
-Core tables:
-- users
-- profiles
-- subscriptions
-- credits
-- projects
-- video_jobs
+* AI provides **prompt templates** optimized per industry
+* Users guided step-by-step to prevent poor prompting
+* Java-based prompt structuring supported under the hood
+* Simple UI, powerful prompting logic
 
 ---
 
-## Non-Functional Requirements
+## **AI Content Intelligence**
 
-- Refinement response < 10s
-- Async video generation
-- Secure image handling
-- Explicit consent for human likeness
+### **Performance-Based Recommendations**
+
+* AI analyzes scraped data from social platforms
+* Recommends:
+
+  * Best-performing video formats per industry
+  * Ideal hooks, pacing, length, CTA styles
+  * Trending content styles
+
+### **Script Optimization**
+
+* AI refines scripts for:
+
+  * Retention
+  * Emotional hooks
+  * Platform-specific optimization
+* Final scripts optimized for WAN AI video generation
 
 ---
 
-## Out of Scope (v1)
+## **Media Upload & Customization**
 
-- Long-form video
-- Advanced analytics
-- Team collaboration
-- Model fine-tuning
+Users can upload:
+
+* Images
+* Pre-recorded videos
+* Property walkthroughs or branded assets
+
+AI will:
+
+* Integrate uploaded media
+* Add dialogue, captions, transitions, overlays
+* Maintain industry-appropriate tone
 
 ---
 
-## Positioning
+## **Voice Cloning (Optional)**
 
-Beyond is positioned as a **digital AI-powered social media manager** that prioritizes realism, simplicity, and speed.
+* Users upload a short voice sample
+* AI replicates the user’s voice
+* Used for narration to create hyper-realistic videos
+
+---
+
+## **In-App Video Editor**
+
+* CapCut-style editor
+* Drag-and-drop timeline
+* AI-assisted editing features:
+
+  * Best music suggestions
+  * Auto subtitles
+  * Scene trimming
+  * Highlight suggestions
+
+---
+
+## **Captions, Hashtags & Optimization**
+
+AI auto-generates:
+
+* Platform-specific captions
+* High-engagement hashtags
+* CTA variations
+* Emojis and formatting based on platform norms
+
+---
+
+## **Social Media Scheduling & Posting**
+
+### **Supported Platforms**
+
+* TikTok
+* Instagram
+* LinkedIn
+* Facebook
+
+### **Smart Scheduling**
+
+* Initial posting times based on global industry data
+* Gradually optimized per user account using:
+
+  * Engagement rates
+  * Reach
+  * Click-throughs
+* Posts spread across the week
+* Maximum engagement timing per platform
+
+---
+
+## **Calendar & Tracking**
+
+* In-app content calendar
+* Visual view of:
+
+  * Scheduled posts
+  * Published posts
+  * Upcoming campaigns
+* Easy rescheduling and editing
+
+---
+
+## **Analytics & Learning System**
+
+* Platform learns from:
+
+  * User engagement data
+  * Industry performance trends
+* Continuously improves:
+
+  * Posting times
+  * Video formats
+  * Script styles
+* Personalized optimization over time
+
+Users don’t need to:
+
+* Know how to prompt AI
+* Edit videos manually
+* ⁠study data analyatics
+* ⁠understand platforms algorithms
+
+
+
+context: 
+
+---
+
+# **Beyond Social Media Marketing – Project Brief**
+
+**Beyond Social Media Marketing** is an AI-powered platform that enables businesses to create, optimize, schedule, and publish high-performing social media videos with minimal effort. The platform is designed to remove the complexity of content creation by combining AI scripting, video generation, editing, analytics, and automated posting into one seamless workflow.
+
+Users subscribe to a monthly plan that includes a fixed number of videos per month. Each plan has a maximum video allowance (for example, 10 videos per month). Once the limit is reached, users can either upgrade their plan or purchase additional videos individually. Payments are handled through Stripe, Apple Pay, and Google Pay. Upon purchase, users receive login credentials to access their admin dashboard.
+
+The admin panel provides a clear overview of total videos created, remaining videos for the billing cycle, total engagement, total reach, and all scheduled posts. A prominent “Create New Video” button is always visible to encourage frequent content creation. Users can also view upcoming and published content through an in-app calendar.
+
+When creating a video, users first select their industry (such as property, engineering, or food and beverage) and the type of video they want to create—whether fully AI-generated, built from uploaded images, remixed from existing videos, or created from scratch. Since many users may not know how to write effective AI prompts, the platform provides guided prompt formats optimized for each industry, using structured prompting logic behind the scenes.
+
+The AI analyzes performance data scraped from social media platforms to recommend the best-performing video formats, hooks, and content styles for each industry. It then refines the script for maximum engagement and retention before passing it to the video generation engine. Users can upload their own images or pre-recorded videos—such as property walkthroughs—which the AI integrates into the final video with dialogue, text, and transitions.
+
+Users may optionally upload a short voice sample, allowing the AI to replicate their voice for narration, making the videos more realistic and personalized. After generation, videos can be edited in an in-app editor similar to CapCut, where users can adjust scenes, apply AI-recommended music, add auto-generated subtitles, and fine-tune the final output.
+
+The platform automatically generates optimized captions, hashtags, and calls-to-action tailored to each social media platform to maximize reach and engagement. Videos are then scheduled and posted to TikTok, Instagram, LinkedIn, and Facebook. Posting times initially rely on industry-wide performance data and are continuously refined based on each user’s engagement metrics. Content is intelligently spread throughout the week and published at the most effective times.
+
+Users can track all scheduled and published content through a visual calendar and monitor performance through built-in analytics. Over time, the system learns from user-specific data to further optimize video formats, scripts, and posting schedules.

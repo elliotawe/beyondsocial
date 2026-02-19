@@ -6,7 +6,7 @@ import Link from "next/link"
 
 export default function Hero() {
     return (
-        <div className="min-h-screen bg-gradient-to-b from-background via-background/50 to-background flex flex-col items-center justify-center px-6 py-20">
+        <div className="min-h-screen bg-linear-to-b from-background via-background/50 to-background flex flex-col items-center justify-center px-6 py-20">
             <div className="max-w-4xl w-full mx-auto space-y-12 my-12">
 
                 {/* Headline & Subheader */}
@@ -35,9 +35,9 @@ export default function Hero() {
 
                 {/* Dashboard Preview */}
                 <div className="pt-12">
-                    <div className="relative bg-gradient-to-b from-secondary/50 via-secondary/30 to-background rounded-2xl border border-border/40 overflow-hidden shadow-2xl">
+                    <div className="relative bg-linear-to-b from-secondary/50 via-secondary/30 to-background rounded-2xl border border-border/40 overflow-hidden shadow-2xl">
                         {/* Dashboard mockup */}
-                        <div className="aspect-video bg-gradient-to-br from-secondary/40 via-background to-secondary/20 p-8 flex flex-col">
+                        <div className="aspect-video bg-linear-to-br from-secondary/40 via-background to-secondary/20 p-8 flex flex-col">
                             <div className="flex gap-2 mb-6">
                                 <div className="w-3 h-3 rounded-full bg-red-500" />
                                 <div className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -67,7 +67,7 @@ export default function Hero() {
                                 {/* Video Preview Panel */}
                                 <div className="space-y-3">
                                     <div className="text-sm font-semibold text-foreground">Generated Video</div>
-                                    <div className="bg-gradient-to-br from-secondary/60 to-secondary/30 rounded-lg aspect-square flex items-center justify-center">
+                                    <div className="bg-linear-to-br from-secondary/60 to-secondary/30 rounded-lg aspect-square flex items-center justify-center">
                                         <div className="text-center">
                                             <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-2">
                                                 ▶

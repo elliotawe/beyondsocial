@@ -1,26 +1,44 @@
-"use client";
-
-import { useAuth } from "@/lib/auth-context";
-import {
-    Users,
-    Activity,
-    Video,
-    TrendingUp,
-    AlertCircle,
-    CheckCircle2,
-    Clock
-} from "lucide-react";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import connectDB from "@/lib/db";
+import { User } from "@/models/User";
+import { getAdminStats, getAllUsers } from "@/app/actions/admin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+// import { Progress } from "@/components/ui/progress";
+import { Users, Video, Activity, ShieldCheck, /* Mail, Calendar, */ TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function AdminOverview() {
-    const stats = [
-        { title: "Total Platform Users", value: "12,482", icon: Users, trend: "+12.5%", color: "text-blue-500" },
-        { title: "Videos Generated", value: "45,291", icon: Video, trend: "+18.2%", color: "text-purple-500" },
-        { title: "Active subscriptions", value: "842", icon: TrendingUp, trend: "+4.3%", color: "text-emerald-500" },
-        { title: "System Uptime", value: "99.98%", icon: Activity, trend: "Stable", color: "text-orange-500" },
+export default async function AdminOverview() {
+    const session = await auth();
+    if (!session?.user?.email) redirect("/login");
+
+    await connectDB();
+    const currentUser = await User.findOne({ email: session.user.email });
+
+    // Safety check for role (though middleware/layout should handle this)
+    if (!currentUser || currentUser.role !== "admin") {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+                <ShieldCheck className="w-16 h-16 text-red-500" />
+                <h1 className="text-2xl font-bold">Access Denied</h1>
+                <p className="text-muted-foreground">You do not have administrative privileges.</p>
+                <Button variant="outline" asChild>
+                    <a href="/dashboard">Back to Dashboard</a>
+                </Button>
+            </div>
+        );
+    }
+
+    const stats = await getAdminStats();
+    const users = await getAllUsers();
+
+    const statCards = [
+        { title: "Total Platform Users", value: stats.totalUsers.toLocaleString(), icon: Users, trend: "Live", color: "text-blue-500" },
+        { title: "Videos Generated", value: stats.totalProjects.toLocaleString(), icon: Video, trend: "Real-time", color: "text-purple-500" },
+        { title: "Background Jobs", value: stats.totalJobs.toLocaleString(), icon: Activity, trend: "Status: Active", color: "text-emerald-500" },
+        { title: "Active (24h)", value: stats.activeUsers.toLocaleString(), icon: TrendingUp, trend: "User Pulse", color: "text-orange-500" },
     ];
 
     return (
@@ -31,7 +49,7 @@ export default function AdminOverview() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat, i) => (
+                {statCards.map((stat, i) => (
                     <Card key={i} className="border-none shadow-sm dark:bg-zinc-900/50 backdrop-blur-sm">
                         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                             <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
@@ -39,11 +57,9 @@ export default function AdminOverview() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{stat.value}</div>
-                            <p className="text-xs text-muted-foreground pt-1">
-                                <span className={stat.trend.startsWith('+') ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
-                                    {stat.trend}
-                                </span>
-                                {stat.trend !== "Stable" && " from last month"}
+                            <p className="text-[10px] text-muted-foreground pt-1 flex items-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 inline-block" />
+                                {stat.trend}
                             </p>
                         </CardContent>
                     </Card>
@@ -53,55 +69,62 @@ export default function AdminOverview() {
             <div className="grid gap-6 lg:grid-cols-7">
                 <Card className="lg:col-span-4 border-none shadow-sm dark:bg-zinc-900/50">
                     <CardHeader>
-                        <CardTitle>Resource Usage</CardTitle>
-                        <CardDescription>GPU and Storage consumption across all nodes.</CardDescription>
+                        <CardTitle>User Management Summary</CardTitle>
+                        <CardDescription>Recently registered users and tiers.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">GPU Rendering Power</span>
-                                <span className="font-medium">78%</span>
-                            </div>
-                            <Progress value={78} className="h-2" />
+                    <CardContent>
+                        <div className="divide-y divide-border -mt-4">
+                            {users.slice(0, 6).map((user: { _id: string, name?: string, email: string, planTier: string, credits: number }) => (
+                                <div key={user._id} className="py-3 flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                            {user.name?.[0] || user.email[0].toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium leading-none">{user.name || "Anonymous"}</p>
+                                            <p className="text-xs text-muted-foreground">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider">
+                                            {user.planTier}
+                                        </Badge>
+                                        <p className="text-xs font-mono">{user.credits} CR</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Object Storage</span>
-                                <span className="font-medium">64%</span>
-                            </div>
-                            <Progress value={64} className="h-2" />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">API Rate Limit (Avg)</span>
-                                <span className="font-medium">42%</span>
-                            </div>
-                            <Progress value={42} className="h-2" />
-                        </div>
+                        <Button variant="ghost" className="w-full mt-4 text-xs font-medium" asChild>
+                            <a href="/admin/users">View all users</a>
+                        </Button>
                     </CardContent>
                 </Card>
 
                 <Card className="lg:col-span-3 border-none shadow-sm dark:bg-zinc-900/50">
                     <CardHeader>
-                        <CardTitle>System Health</CardTitle>
-                        <CardDescription>Recent status checks and incidents.</CardDescription>
+                        <CardTitle>Recent Job Activity</CardTitle>
+                        <CardDescription>Last 5 background tasks.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {[
-                            { name: "Auth Service", status: "Healthy", icon: CheckCircle2, color: "text-emerald-500" },
-                            { name: "Video Processing", status: "Healthy", icon: CheckCircle2, color: "text-emerald-500" },
-                            { name: "Database Cluster", status: "Healthy", icon: CheckCircle2, color: "text-emerald-500" },
-                            { name: "Global CDN", status: "Degraded", icon: AlertCircle, color: "text-amber-500" },
-                            { name: "AI Inference Hub", status: "Healthy", icon: CheckCircle2, color: "text-emerald-500" },
-                        ].map((s, i) => (
-                            <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-                                <span className="text-sm font-medium">{s.name}</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">{s.status}</span>
-                                    <s.icon className={cn("w-4 h-4", s.color)} />
+                        {stats.recentJobs.map((job: { _id: string, type: string, createdAt: string, status: string }) => (
+                            <div key={job._id} className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border/50">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold capitalize">{job.type.replace('_', ' ')}</p>
+                                    <p className="text-[10px] text-muted-foreground">{new Date(job.createdAt).toLocaleTimeString()}</p>
                                 </div>
+                                <Badge variant="secondary" className={cn(
+                                    "text-[9px] uppercase font-bold",
+                                    job.status === "completed" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                        job.status === "failed" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                                            "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                                )}>
+                                    {job.status}
+                                </Badge>
                             </div>
                         ))}
+                        <Button variant="ghost" className="w-full mt-2 text-xs font-medium" asChild>
+                            <a href="/admin/jobs">Queue monitor</a>
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
