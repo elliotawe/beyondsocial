@@ -1,7 +1,7 @@
 "use client";
 
 import {
-    MessageCircle, // Keep MessageCircle for stats and button
+    MessageCircle,
     Clock,
     User,
     MoreHorizontal,

@@ -18,7 +18,7 @@ import {
 interface Project {
     _id: string;
     title: string;
-    thumbnail?: string;
+    thumbnail: string | null;
     status: string;
     createdAt: string;
 }

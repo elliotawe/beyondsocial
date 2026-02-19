@@ -20,13 +20,14 @@ import { AnalyticsChart } from "@/components/dashboard/analytics-view";
 interface Project {
     _id: string;
     title: string;
-    thumbnail?: string;
+    thumbnail: string | null;
     status: string;
     socialStatus: string;
     createdAt: string;
-    analytics?: {
-        views?: number;
-        engagement?: number;
+    analytics: {
+        views: number;
+        engagement: number;
+        shares: number;
     };
 }
 

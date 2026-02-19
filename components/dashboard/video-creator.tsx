@@ -53,7 +53,7 @@ export function VideoCreator() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
     const [projectId, setProjectId] = useState<string | null>(null);
-    // const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     // Inspiration & Specialized Modes
     const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
@@ -94,7 +94,7 @@ export function VideoCreator() {
             setRefinedScript(result);
 
             // 3. Update project with the refined script
-            await updateProjectDraft(newProjectId, { script: result });
+            await updateProjectDraft(newProjectId, { script: result as any });
 
             setStep(2);
         } catch (error: unknown) {
@@ -110,7 +110,7 @@ export function VideoCreator() {
         setIsSaving(true);
         try {
             await updateProjectDraft(projectId, {
-                script: refinedScript,
+                script: refinedScript as any,
                 uploadedImages: uploadedImages
             });
             // Show some success toast/feedback
@@ -197,7 +197,7 @@ export function VideoCreator() {
         try {
             // Update draft one last time before converting to job
             await updateProjectDraft(projectId, {
-                script: refinedScript,
+                script: refinedScript as any,
                 uploadedImages: uploadedImages
             });
 
