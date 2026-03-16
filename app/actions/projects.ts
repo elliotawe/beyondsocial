@@ -58,7 +58,7 @@ export async function getProjectById(id: string) {
     };
 }
 
-export async function createProjectDraft(data: { title: string; roughIdea: string; style?: string; tone?: string }) {
+export async function createProjectDraft(data: { title: string; roughIdea: string; style?: string; tone?: string; useClonedVoice?: boolean }) {
     const session = await auth();
     if (!session?.user?.email) throw new Error("Unauthorized");
 
@@ -73,7 +73,8 @@ export async function createProjectDraft(data: { title: string; roughIdea: strin
         status: "draft",
         script: {
             video_style: data.style,
-            tone: data.tone
+            tone: data.tone,
+            useClonedVoice: data.useClonedVoice
         }
     });
 

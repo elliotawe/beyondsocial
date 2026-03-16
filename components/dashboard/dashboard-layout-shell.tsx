@@ -7,7 +7,8 @@ import Logo from "@/components/partials/logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowUpRight } from "lucide-react";
 
 export interface NavLink {
     label: string;
@@ -70,8 +71,10 @@ export default function DashboardLayoutShell({
         >
             <Sidebar open={open} setOpen={setOpen}>
                 <SidebarBody className="justify-between gap-10 bg-sidebar border-r border-sidebar-border">
-                    <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-                        {open ? <Logoo /> : <LogoIcon />}
+                    <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto custom-scrollbar">
+                        <div className="px-2 py-4">
+                            {open ? <Logoo /> : <LogoIcon />}
+                        </div>
                         <div className="mt-8 flex flex-col gap-2">
                             {links.map((link, idx) => (
                                 <SidebarLink
@@ -82,45 +85,71 @@ export default function DashboardLayoutShell({
                             ))}
                         </div>
                     </div>
-                    <div className="mt-auto pt-4 border-t border-sidebar-border/50">
+                    <div className="mt-auto pt-6 border-t border-sidebar-border/30 px-2">
                         {open && (
-                            <div className="px-4 mb-4 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <div className="flex justify-between items-end">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Credits</p>
-                                    <p className="text-xs font-bold text-primary">{user.credits} / {user.planTier === "free" ? "5" : user.planTier === "pro" ? "50" : "Unlimited"}</p>
+                            <div className="mb-6 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <div className="flex justify-between items-end px-1">
+                                    <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-muted-foreground/60">Balance</p>
+                                    <div className="flex items-center gap-1">
+                                        <div className="size-1.5 rounded-full bg-primary animate-pulse" />
+                                        <p className="text-xs font-black font-outfit text-primary">{user.credits} <span className="text-[10px] font-bold text-muted-foreground/50">/ {user.planTier === "free" ? "5" : user.planTier === "pro" ? "50" : "∞"}</span></p>
+                                    </div>
                                 </div>
-                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                <div className="h-2 w-full bg-muted/50 rounded-full overflow-hidden border border-border/10 p-px">
                                     <div
-                                        className="h-full bg-primary transition-all duration-500"
+                                        className="h-full bg-linear-to-r from-primary/80 to-primary rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(var(--primary),0.3)]"
                                         style={{ width: `${Math.min(100, (user.credits / (user.planTier === "free" ? 5 : user.planTier === "pro" ? 50 : 100)) * 100)}%` }}
                                     />
                                 </div>
-                                <p className="text-[9px] text-muted-foreground leading-tight">
-                                    {user.planTier === "free" ? "Upgrade for more power." : "You're on the Pro plan."}
-                                </p>
+                                <div className="flex items-center gap-2 group cursor-pointer">
+                                    <p className="text-[9px] font-bold text-muted-foreground/60 group-hover:text-primary transition-colors leading-tight">
+                                        {user.planTier === "free" ? "Limited Access • Upgrade" : "Professional Account"}
+                                    </p>
+                                    <ArrowUpRight className="size-2 text-muted-foreground/0 group-hover:text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                                </div>
                             </div>
                         )}
-                        <SidebarLink
-                            link={{
-                                label: user.name || "User",
-                                href: requiredRole === "admin" ? "/admin/settings" : "/dashboard/settings",
-                                icon: (
-                                    <img
-                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`}
-                                        className="h-7 w-7 shrink-0 rounded-full"
-                                        width={50}
-                                        height={50}
-                                        alt="Avatar"
-                                    />
-                                ),
-                            }}
-                        />
+                        <div className="bg-card/40 border border-border/20 rounded-2xl p-1 mb-2">
+                            <SidebarLink
+                                link={{
+                                    label: user.name || "User",
+                                    href: requiredRole === "admin" ? "/admin/settings" : "/dashboard/settings",
+                                    icon: (
+                                        <div className="relative">
+                                            <img
+                                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&bold=true`}
+                                                className="h-8 w-8 shrink-0 rounded-xl object-cover ring-2 ring-background ring-offset-2 ring-offset-primary/10 transition-all group-hover:scale-105"
+                                                alt="Avatar"
+                                            />
+                                            <div className="absolute -bottom-0.5 -right-0.5 size-2.5 bg-emerald-500 border-2 border-background rounded-full" />
+                                        </div>
+                                    ),
+                                }}
+                                className="px-3"
+                            />
+                        </div>
                     </div>
                 </SidebarBody>
             </Sidebar>
-            <div className="flex flex-1">
-                <div className="flex h-full w-full flex-1 flex-col gap-2 rounded-tl-2xl border border-border bg-background p-2 md:p-10 overflow-y-auto">
-                    {children}
+            <div className="flex flex-1 relative overflow-hidden">
+                {/* Background Glow */}
+                <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 size-[500px] bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
+                <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/3 size-[300px] bg-accent/5 blur-[100px] rounded-full pointer-events-none" />
+
+                <div
+                    className={cn(
+                        "flex h-full w-full flex-1 flex-col gap-2 rounded-tl-[32px] border-t border-l border-border/40 bg-background/50 backdrop-blur-3xl p-4 md:p-10 overflow-y-auto relative z-10",
+                        "animate-in fade-in slide-in-from-right-4 duration-700 ease-out"
+                    )}
+                >
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
+                        className="flex-1 flex flex-col"
+                    >
+                        {children}
+                    </motion.div>
                 </div>
             </div>
         </div>

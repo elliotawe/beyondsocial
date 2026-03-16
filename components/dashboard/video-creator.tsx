@@ -4,16 +4,19 @@ import { refineVideoIdea, createVideoGenerationJob, getProjectStatus } from "@/a
 import type { RefinedScript } from "@/lib/ai-service";
 import { uploadImage } from "@/app/actions/cloudinary";
 import { createProjectDraft, updateProjectDraft } from "@/app/actions/projects";
-import { getIndustrySuggestions } from "@/app/actions/industries";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, ArrowRight, Check, ImageIcon, Loader2, Play, Sparkles, /* Wand2, */ Save, Plus, /* Mic, Paperclip, Globe, Search, ShoppingBag, Telescope, MoreHorizontal, ChevronDown, AudioLines, */ X, Share2, Download, ExternalLink } from "lucide-react";
-import { useState /*, useRef, useEffect */ } from "react";
+import { 
+    AlertCircle, ArrowRight, Check, ImageIcon, Loader2, Play, Sparkles, 
+    Save, Plus, X, Share2, Download, Scissors, Type 
+} from "lucide-react";
+import { useState } from "react";
 import { Button } from "../ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 // import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
 import { Textarea } from "../ui/textarea";
+import { DiscoveryStep } from "./discovery-step";
+import { VideoEditor } from "./video-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 // import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "../ui/dropdown-menu";
 
@@ -41,7 +44,7 @@ const getMediaMetadata = (file: File): Promise<{ width: number; height: number; 
 };
 
 export function VideoCreator() {
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(0); // Start at discovery
     const [roughIdea, setRoughIdea] = useState("");
     const [style, setStyle] = useState("cinematic");
     const [tone, setTone] = useState("professional");
@@ -54,25 +57,24 @@ export function VideoCreator() {
     const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
     const [projectId, setProjectId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showEditor, setShowEditor] = useState(false);
+
+    // Auto Captions & Hashtags (Requirement 4)
+    const [autoCaptions, setAutoCaptions] = useState<string[]>([]);
+    const [recommendedHashtags, setRecommendedHashtags] = useState<string[]>([]);
+    const [useClonedVoice, setUseClonedVoice] = useState(false);
 
     // Inspiration & Specialized Modes
-    const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [realEstateMode, setRealEstateMode] = useState(false);
+    const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
+    const [suggestedScript, setSuggestedScript] = useState<string | undefined>(undefined);
 
-    const handleIndustrySelect = async (industry: string) => {
+    const handleSelectBrief = ({ industry, concept, hook, idea, suggestedScript: discoveryScript }: { industry: string; concept: string; hook: string; idea: string; suggestedScript?: string }) => {
         setSelectedIndustry(industry);
-        setIsLoadingSuggestions(true);
         setRealEstateMode(industry === "Real Estate");
-        try {
-            const ideas = await getIndustrySuggestions(industry);
-            setSuggestions(ideas);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setIsLoadingSuggestions(false);
-        }
+        setRoughIdea(`Concept: ${concept}\nHook: ${hook}\nContext: ${idea}`);
+        setSuggestedScript(discoveryScript);
+        setStep(1);
     };
 
     const handleRefine = async () => {
@@ -85,12 +87,13 @@ export function VideoCreator() {
                 title: roughIdea.slice(0, 30) + "...",
                 roughIdea,
                 style,
-                tone
+                tone,
+                useClonedVoice // Pass this to the draft
             });
             setProjectId(newProjectId);
 
             // 2. Refine the idea
-            const result = await refineVideoIdea(roughIdea, style, tone, selectedIndustry || undefined, realEstateMode);
+            const result = await refineVideoIdea(roughIdea, style, tone, selectedIndustry || undefined, realEstateMode, suggestedScript);
             setRefinedScript(result);
 
             // 3. Update project with the refined script
@@ -99,7 +102,7 @@ export function VideoCreator() {
             setStep(2);
         } catch (error: unknown) {
             console.error(error);
-            // setError(error instanceof Error ? error.message : "Something went wrong during refinement.");
+            setError(error instanceof Error ? error.message : "Something went wrong during refinement.");
         } finally {
             setIsRefining(false);
         }
@@ -165,8 +168,8 @@ export function VideoCreator() {
                                 try {
                                     const url = await uploadImage(event.target.result as string);
                                     resolve(url);
-                                } catch {
-                                    reject(new Error(`Upload failed for "${file.name}": 502 Proxy Error. The file might be too complex or large for the server.`));
+                                } catch (err: unknown) {
+                                    reject(err instanceof Error ? err : new Error(`Upload failed for "${file.name}"`));
                                 }
                             }
                         };
@@ -227,6 +230,19 @@ export function VideoCreator() {
                 if (result.status === "completed" && result.videoUrl) {
                     clearInterval(interval);
                     setGeneratedVideo(result.videoUrl);
+
+                    // Generate Auto Captions & Hashtags (Requirement 4)
+                    setAutoCaptions([
+                        refinedScript?.scenes[0]?.script || "Welcome to Beyond.",
+                        refinedScript?.cta || "Start creating today!"
+                    ]);
+                    setRecommendedHashtags([
+                        `#${selectedIndustry?.toLowerCase() || 'content'}`,
+                        "#beyondsocial",
+                        "#aivirals",
+                        "#contentcreator"
+                    ]);
+
                     setIsGenerating(false);
                     setStep(4);
                 } else if (result.status === "failed") {
@@ -248,7 +264,7 @@ export function VideoCreator() {
     };
 
     const resetCreator = () => {
-        setStep(1);
+        setStep(0);
         setRoughIdea("");
         setStyle("cinematic");
         setTone("professional");
@@ -256,11 +272,13 @@ export function VideoCreator() {
         setUploadedImages([]);
         setGeneratedVideo(null);
         setProjectId(null);
+        setSelectedIndustry(null);
         setError(null);
     };
 
     return (
         <div className="">
+            {step === 0 && <DiscoveryStep onSelectBrief={handleSelectBrief} />}
             {step === 1 && (
                 <div className="flex flex-col items-center justify-center min-h-[70vh] py-12 transition-all duration-700 animate-in fade-in slide-in-from-bottom-8">
                     <div className="w-full max-w-3xl space-y-12">
@@ -282,52 +300,6 @@ export function VideoCreator() {
                                 <AlertDescription>{error}</AlertDescription>
                             </Alert>
                         )}
-
-                        {/* Industry Inspiration */}
-                        <div className="space-y-4">
-                            <div className="flex flex-wrap justify-center gap-2">
-                                {["Real Estate", "E-commerce", "Fitness", "Tech", "Lifestyle"].map((ind) => (
-                                    <Button
-                                        key={ind}
-                                        variant={selectedIndustry === ind ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => handleIndustrySelect(ind)}
-                                        className="rounded-full px-4 h-8 text-xs font-bold transition-all"
-                                    >
-                                        {ind}
-                                    </Button>
-                                ))}
-                            </div>
-
-                            {selectedIndustry && (
-                                <div className="flex flex-wrap justify-center gap-2 animate-in fade-in slide-in-from-top-4 duration-500">
-                                    {isLoadingSuggestions ? (
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                            Getting fresh ideas for {selectedIndustry}...
-                                        </div>
-                                    ) : (
-                                        suggestions.map((sug, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => {
-                                                    setRoughIdea(sug);
-                                                    // Trigger textarea resize
-                                                    const textarea = document.querySelector('textarea');
-                                                    if (textarea) {
-                                                        textarea.style.height = 'auto';
-                                                        textarea.style.height = textarea.scrollHeight + 'px';
-                                                    }
-                                                }}
-                                                className="text-[11px] bg-primary/5 hover:bg-primary/10 border border-primary/10 text-primary px-3 py-1.5 rounded-full font-medium transition-colors"
-                                            >
-                                                {sug}
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-                            )}
-                        </div>
 
                         {/* Image Upload Area */}
                         <div className="space-y-4">
@@ -444,12 +416,18 @@ export function VideoCreator() {
                         <div className="relative group max-w-2xl mx-auto w-full">
                             <div className={cn(
                                 "relative flex items-center gap-2 bg-card/60 backdrop-blur-xl rounded-[32px] p-2 pl-5 pr-3 border border-border/50 shadow-2xl transition-all duration-500 group-focus-within:ring-2 group-focus-within:ring-primary/30 group-focus-within:bg-card",
-                                uploadedImages.length === 0 && "opacity-50 pointer-events-none grayscale"
+                                (uploadedImages.length === 0 && !roughIdea) && "opacity-50 pointer-events-none grayscale"
                             )}>
+                                {/* Voice Clone Toggle */}
+                                <div className="absolute -top-12 right-0 flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-widest cursor-pointer hover:bg-primary/20 transition-all"
+                                    onClick={() => setUseClonedVoice(!useClonedVoice)}>
+                                    <div className={cn("size-2 rounded-full transition-all", useClonedVoice ? "bg-primary animate-pulse" : "bg-muted-foreground")} />
+                                    {useClonedVoice ? "Cloned Voice Active" : "Use Standard AI Voice"}
+                                </div>
                                 {/* Input */}
                                 <Textarea
                                     rows={1}
-                                    placeholder={uploadedImages.length === 0 ? "Upload an image first..." : "e.g., A cinematic teaser for a luxury watch brand..."}
+                                    placeholder={(uploadedImages.length === 0 && !roughIdea) ? "Upload an image first..." : "Refine your video idea..."}
                                     className="flex-1 min-h-[52px] max-h-[200px] py-4 text-xl bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/30 resize-none font-medium"
                                     value={roughIdea}
                                     onChange={(e) => {
@@ -470,7 +448,7 @@ export function VideoCreator() {
                                     {(roughIdea.trim() || isRefining) && (
                                         <Button
                                             onClick={handleRefine}
-                                            disabled={isRefining || uploadedImages.length === 0}
+                                            disabled={isRefining || (uploadedImages.length === 0 && !roughIdea)}
                                             size="icon"
                                             className="h-10 w-10 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-all duration-300 transform scale-100 animate-in zoom-in"
                                         >
@@ -644,6 +622,10 @@ export function VideoCreator() {
                             </div>
 
                             <div className="flex flex-wrap gap-4">
+                                <Button size="lg" onClick={() => setShowEditor(true)} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-8 h-14 font-bold shadow-xl shadow-primary/20">
+                                    <Scissors className="w-5 h-5 mr-2" />
+                                    Open Designer
+                                </Button>
                                 <Button size="lg" className="rounded-full bg-foreground text-background hover:bg-foreground/90 px-8 h-14 font-bold shadow-xl">
                                     <Download className="w-5 h-5 mr-2" />
                                     Download 4K
@@ -652,10 +634,35 @@ export function VideoCreator() {
                                     <Share2 className="w-5 h-5 mr-2" />
                                     Share to Socials
                                 </Button>
-                                <Button size="lg" variant="ghost" className="rounded-full px-8 h-14 font-bold hover:bg-muted">
-                                    <ExternalLink className="w-5 h-5 mr-2" />
-                                    View in Dashboard
-                                </Button>
+                            </div>
+
+                            {/* Requirement 4: Auto Captions & Hashtags */}
+                            <div className="grid md:grid-cols-2 gap-6 pt-8 animate-in fade-in slide-in-from-top-4 duration-1000 delay-300">
+                                <div className="p-6 rounded-3xl bg-card border border-border/40 space-y-4">
+                                    <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                                        <Type className="size-4" /> Finalized Captions
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {autoCaptions.map((cap, i) => (
+                                            <div key={i} className="p-3 bg-muted/40 rounded-xl text-sm font-medium border border-border/20">
+                                                {cap}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="p-6 rounded-3xl bg-card border border-border/40 space-y-4">
+                                    <h3 className="text-sm font-bold uppercase tracking-widest text-accent flex items-center gap-2">
+                                        <Share2 className="size-4" /> Recommended Hashtags
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {recommendedHashtags.map((tag, i) => (
+                                            <Badge key={i} variant="outline" className="bg-accent/5 text-accent border-accent/20 px-3 py-1 text-sm rounded-full">
+                                                {tag}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground italic">Optimized for high-reach social feed placement.</p>
+                                </div>
                             </div>
                         </div>
 
@@ -689,6 +696,18 @@ export function VideoCreator() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showEditor && generatedVideo && (
+                <VideoEditor
+                    videoUrl={generatedVideo}
+                    initialCaptions={autoCaptions}
+                    onClose={() => setShowEditor(false)}
+                    onExport={(url) => {
+                        console.log("Exporting...", url);
+                        setShowEditor(false);
+                    }}
+                />
             )}
         </div>
     );

@@ -61,37 +61,37 @@ export default async function DashboardHome() {
         }));
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="space-y-10">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit truncate max-w-[300px]">
+                    <h1 className="text-4xl font-extrabold tracking-tight mb-2 font-outfit bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                         Welcome back, {user?.name?.split(' ')[0] || "Creator"}
                     </h1>
-                    <p className="text-muted-foreground">Here&apos;s what&apos;s happening with your social accounts today.</p>
+                    <p className="text-muted-foreground font-medium">Your social command center is ready.</p>
                 </div>
-                <Button asChild className="rounded-xl shadow-lg shadow-primary/20">
+                <Button asChild size="lg" className="rounded-2xl shadow-2xl shadow-primary/20 bg-primary hover:bg-primary/90 px-6 py-6 transition-all hover:scale-[1.02]">
                     <Link href="/dashboard/create">
-                        <Plus className="w-4 h-4 mr-2" />
+                        <Plus className="size-5 mr-2" />
                         Create New Video
                     </Link>
                 </Button>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat) => (
-                    <Card key={stat.title} className="border border-border shadow-sm overflow-hidden relative">
-                        <CardContent className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="p-2 bg-primary/10 rounded-lg">
-                                    <stat.icon className="w-5 h-5 text-primary" />
+                {stats.map((stat, i) => (
+                    <Card key={stat.title} className="border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden relative group hover:border-primary/20 transition-all duration-300">
+                        <CardContent className="p-7">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="size-10 bg-primary/5 rounded-2xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                                    <stat.icon className="size-5 text-primary" />
                                 </div>
-                                <Badge variant="ghost" className="text-[10px] text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/10">
+                                <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/5 text-emerald-500 border border-emerald-500/10 py-1">
                                     {stat.trend}
                                 </Badge>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                                <p className="text-3xl font-bold font-outfit">{stat.value}</p>
+                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{stat.title}</p>
+                                <p className="text-4xl font-extrabold font-outfit tracking-tight">{stat.value}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -99,65 +99,88 @@ export default async function DashboardHome() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-                <Card className="lg:col-span-2 border border-border shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Content Engagement</CardTitle>
-                        <CardDescription>Visualizing reach and engagement for your last 5 posted videos.</CardDescription>
+                <Card className="lg:col-span-2 border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-lg font-bold">Content Engagement</CardTitle>
+                                <CardDescription className="text-xs">Visualizing reach and engagement for your last 5 posted videos.</CardDescription>
+                            </div>
+                            <Button variant="outline" size="sm" className="h-8 rounded-full text-[10px] uppercase font-bold tracking-widest border-border/40">
+                                Last 7 Days
+                            </Button>
+                        </div>
                     </CardHeader>
-                    <CardContent className="h-[300px] mt-4">
+                    <CardContent className="h-[320px] mt-2">
                         <AnalyticsChart data={chartData} />
                     </CardContent>
                 </Card>
 
-                <Card className="border border-border shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Recent Projects</CardTitle>
+                <Card className="border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden">
+                    <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg font-bold">Recent Projects</CardTitle>
+                            <Badge className="rounded-full size-6 flex items-center justify-center p-0 bg-primary/10 text-primary border-none font-bold text-[10px]">
+                                {projects.length}
+                            </Badge>
+                        </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        {projects.length > 0 ? (
-                            projects.map((project: Project) => (
-                                <Link
-                                    key={project._id}
-                                    href={`/dashboard/projects/${project._id}`}
-                                    className="flex items-center gap-4 p-3 rounded-xl bg-muted/30 group transition-all hover:bg-muted/50"
-                                >
-                                    <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden relative">
-                                        {project.thumbnail ? (
-                                            <Image src={project.thumbnail} alt={project.title} className="w-full h-full object-cover" width={48} height={48} />
-                                        ) : (
-                                            <Play className="w-4 h-4 text-muted-foreground group-hover:scale-110 transition-transform" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 overflow-hidden">
-                                        <p className="text-sm font-semibold truncate">{project.title}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {new Date(project.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                        </p>
-                                    </div>
-                                    <Badge variant="outline" className={cn(
-                                        "text-[10px] uppercase font-bold tracking-wider",
-                                        project.status === "completed" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
-                                            project.status === "failed" ? "bg-red-500/10 text-red-500 border-red-500/20" :
-                                                project.status === "processing" ? "bg-blue-500/10 text-blue-500 border-blue-500/20" : ""
-                                    )}>
-                                        {project.status}
-                                    </Badge>
+                    <CardContent className="p-0">
+                        <div className="divide-y divide-border/30">
+                            {projects.length > 0 ? (
+                                projects.slice(0, 4).map((project: Project) => (
+                                    <Link
+                                        key={project._id}
+                                        href={`/dashboard/projects/${project._id}`}
+                                        className="flex items-center gap-4 p-5 group transition-all hover:bg-primary/5 relative"
+                                    >
+                                        <div className="size-12 bg-muted rounded-2xl flex items-center justify-center overflow-hidden relative shadow-sm transition-transform group-hover:scale-105">
+                                            {project.thumbnail ? (
+                                                <Image src={project.thumbnail} alt={project.title} className="w-full h-full object-cover" width={48} height={48} />
+                                            ) : (
+                                                <Play className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 overflow-hidden">
+                                            <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{project.title}</p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                    {new Date(project.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                </p>
+                                                <span className="size-1 rounded-full bg-border" />
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                    {project.analytics?.views || 0} views
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Badge variant="outline" className={cn(
+                                            "text-[9px] uppercase font-black tracking-widest px-2 py-0.5 rounded-sm border-none shadow-xs",
+                                            project.status === "completed" ? "bg-emerald-500/10 text-emerald-500" :
+                                                project.status === "failed" ? "bg-red-500/10 text-red-500" :
+                                                    project.status === "processing" ? "bg-blue-500/10 text-blue-500" : "bg-muted text-muted-foreground"
+                                        )}>
+                                            {project.status}
+                                        </Badge>
+                                    </Link>
+                                ))
+                            ) : (
+                                <div className="text-center py-12 text-muted-foreground">
+                                    <Video className="size-10 mx-auto mb-4 opacity-20" />
+                                    <p className="text-sm font-medium">No videos created yet.</p>
+                                    <Button variant="link" asChild className="mt-2 text-primary">
+                                        <Link href="/dashboard/create">Start your first draft</Link>
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-4 bg-muted/20 border-t border-border/30">
+                            <Button variant="ghost" className="w-full text-zinc-500 text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 hover:text-primary h-10" asChild>
+                                <Link href="/dashboard/projects">
+                                    View full library
+                                    <ArrowUpRight className="size-3 ml-2" />
                                 </Link>
-                            ))
-                        ) : (
-                            <div className="text-center py-8 text-muted-foreground">
-                                <p>No videos yet.</p>
-                                <Button variant="link" asChild className="mt-2">
-                                    <Link href="/dashboard/create">Create your first video</Link>
-                                </Button>
-                            </div>
-                        )}
-                        <Button variant="ghost" className="w-full text-zinc-500 text-xs mt-2" asChild>
-                            <Link href="/dashboard/projects">
-                                View all projects
-                                <ArrowUpRight className="w-3 h-3 ml-2" />
-                            </Link>
-                        </Button>
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

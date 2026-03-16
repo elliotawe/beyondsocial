@@ -1,105 +1,59 @@
 "use client"
 
 import Link from "next/link"
+import Logo from "@/components/partials/logo"
 
 export default function Footer() {
     return (
-        <footer className="border-t border-border/40 bg-secondary/10 py-12 px-6">
+        <footer className="border-t border-border/40 bg-secondary/5 py-20 px-6">
             <div className="max-w-6xl mx-auto">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
+                    <div className="col-span-2 space-y-6">
+                        <Logo className="h-10 w-auto" />
+                        <p className="text-muted-foreground text-base max-w-xs leading-relaxed">
+                            Beyond Social Media Marketing is the AI director for the next generation of creators.
+                            Build your audience with high-performing video content in minutes.
+                        </p>
+                    </div>
                     <div>
-                        <h4 className="font-semibold mb-4">Product</h4>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Features
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Pricing
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Templates
-                                </Link>
-                            </li>
+                        <h4 className="font-semibold text-foreground mb-6">Product</h4>
+                        <ul className="space-y-4 text-sm text-muted-foreground">
+                            <li><Link href="#features" className="hover:text-primary transition-colors">Features</Link></li>
+                            <li><Link href="#how" className="hover:text-primary transition-colors">How it works</Link></li>
+                            <li><Link href="#showcase" className="hover:text-primary transition-colors">Showcase</Link></li>
                         </ul>
                     </div>
                     <div>
-                        <h4 className="font-semibold mb-4">Company</h4>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    About
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Blog
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Careers
-                                </Link>
-                            </li>
+                        <h4 className="font-semibold text-foreground mb-6">Company</h4>
+                        <ul className="space-y-4 text-sm text-muted-foreground">
+                            <li><Link href="#" className="hover:text-primary transition-colors">About Us</Link></li>
+                            <li><Link href="#" className="hover:text-primary transition-colors">Creators</Link></li>
+                            <li><Link href="#" className="hover:text-primary transition-colors">Careers</Link></li>
+                            <li><Link href="#" className="hover:text-primary transition-colors">Blog</Link></li>
                         </ul>
                     </div>
                     <div>
-                        <h4 className="font-semibold mb-4">Resources</h4>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Docs
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Support
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Community
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold mb-4">Legal</h4>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Privacy
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Terms
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="#" className="hover:text-foreground transition">
-                                    Cookie Policy
-                                </Link>
-                            </li>
+                        <h4 className="font-semibold text-foreground mb-6">Support</h4>
+                        <ul className="space-y-4 text-sm text-muted-foreground">
+                            <li><Link href="#" className="hover:text-primary transition-colors">Help Center</Link></li>
+                            <li><Link href="#" className="hover:text-primary transition-colors">API Docs</Link></li>
+                            <li><Link href="#" className="hover:text-primary transition-colors">Community</Link></li>
+                            <li><Link href="#" className="hover:text-primary transition-colors">Contact</Link></li>
                         </ul>
                     </div>
                 </div>
-                <div className="border-t border-border/40 pt-8 flex flex-col md:flex-row items-center justify-between text-sm text-muted-foreground">
-                    <p>&copy; 2025 Beyond. All rights reserved.</p>
-                    <div className="flex gap-4 mt-4 md:mt-0">
-                        <Link href="#" className="hover:text-foreground transition">
-                            Twitter
-                        </Link>
-                        <Link href="#" className="hover:text-foreground transition">
-                            LinkedIn
-                        </Link>
-                        <Link href="#" className="hover:text-foreground transition">
-                            Instagram
-                        </Link>
+
+                <div className="border-t border-border/40 pt-12 flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-muted-foreground/80">
+                    <p>&copy; 2025 Beyond Social Media Marketing. All rights reserved.</p>
+                    <div className="flex gap-8">
+                        <Link href="#" className="hover:text-primary transition-colors">Twitter</Link>
+                        <Link href="#" className="hover:text-primary transition-colors">LinkedIn</Link>
+                        <Link href="#" className="hover:text-primary transition-colors">Instagram</Link>
+                        <Link href="#" className="hover:text-primary transition-colors">TikTok</Link>
+                    </div>
+                    <div className="flex gap-6">
+                        <Link href="#" className="hover:text-primary transition-colors">Privacy</Link>
+                        <Link href="#" className="hover:text-primary transition-colors">Terms</Link>
                     </div>
                 </div>
             </div>

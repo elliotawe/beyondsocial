@@ -5,7 +5,8 @@ import {
     BarChart3,
     Settings,
     ArrowLeft,
-    Folder
+    Folder,
+    Mic
 } from "lucide-react";
 import DashboardLayoutShell, { NavLink } from "@/components/dashboard/dashboard-layout-shell";
 
@@ -34,6 +35,13 @@ export default function DashboardLayout({
             href: "/dashboard/projects",
             icon: (
                 <Folder className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
+            ),
+        },
+        {
+            label: "Voice Clone",
+            href: "/dashboard/voice",
+            icon: (
+                <Mic className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
             ),
         },
         {

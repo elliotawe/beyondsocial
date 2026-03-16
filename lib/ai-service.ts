@@ -23,7 +23,8 @@ export async function refineVideoIdea(
     tone?: string,
     userId?: string,
     industry?: string,
-    realEstateMode?: boolean
+    realEstateMode?: boolean,
+    suggestedScript?: string
 ): Promise<RefinedScript> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -73,6 +74,7 @@ export async function refineVideoIdea(
         prompt: `Translate this rough social media video idea into a structured JSON script for a 15-second vertical video.
       
       Rough Idea: "${roughIdea}"
+      ${suggestedScript ? `Suggested Script Structure from Viral Reference: ${suggestedScript}` : ""}
       ${industryPrompt}
       ${stylePrompt}
       ${tonePrompt}
@@ -127,7 +129,7 @@ export async function generateWanVideo(imageUrl: string, prompt: string) {
                 resolution: "720P",
                 duration: 10,
                 prompt_extend: true,
-                watermark: true,
+                // watermark: true,
                 shot_type: "multi"
             }
         })

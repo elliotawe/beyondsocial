@@ -8,7 +8,7 @@ import { User } from "@/models/User";
 import { auth } from "@/auth";
 // import type { RefinedScript } from "@/lib/ai-service";
 
-export async function refineVideoIdea(idea: string, style?: string, tone?: string, industry?: string, realEstateMode?: boolean) {
+export async function refineVideoIdea(idea: string, style?: string, tone?: string, industry?: string, realEstateMode?: boolean, suggestedScript?: string) {
     const session = await auth();
     let userId = undefined;
 
@@ -18,7 +18,7 @@ export async function refineVideoIdea(idea: string, style?: string, tone?: strin
         if (user) userId = user._id.toString();
     }
 
-    return aiService.refineVideoIdea(idea, style, tone, userId, industry, realEstateMode);
+    return aiService.refineVideoIdea(idea, style, tone, userId, industry, realEstateMode, suggestedScript);
 }
 
 export async function createVideoGenerationJob(imageUrl: string, prompt: string, scriptData: Record<string, unknown>) {
