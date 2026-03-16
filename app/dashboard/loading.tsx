@@ -14,11 +14,11 @@ export default function DashboardLoading() {
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {[...Array(4)].map((_, i) => (
-                    <Card key={i} className="border border-border shadow-sm overflow-hidden pointer-events-none">
+                    <Card key={i} className="border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden pointer-events-none">
                         <CardContent className="p-6">
                             <div className="flex justify-between items-start mb-4">
-                                <Skeleton className="w-9 h-9 rounded-lg" />
-                                <Skeleton className="w-12 h-5 rounded-full" />
+                                <Skeleton className="size-10 rounded-2xl" />
+                                <Skeleton className="w-16 h-6 rounded-full" />
                             </div>
                             <div className="space-y-2">
                                 <Skeleton className="h-4 w-24" />
@@ -30,7 +30,7 @@ export default function DashboardLoading() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-                <Card className="lg:col-span-2 border border-border shadow-sm pointer-events-none">
+                <Card className="lg:col-span-2 border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm pointer-events-none">
                     <CardHeader className="space-y-2">
                         <Skeleton className="h-6 w-48" />
                         <Skeleton className="h-4 w-96" />
@@ -40,7 +40,7 @@ export default function DashboardLoading() {
                     </CardContent>
                 </Card>
 
-                <Card className="border border-border shadow-sm pointer-events-none">
+                <Card className="border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm pointer-events-none">
                     <CardHeader>
                         <Skeleton className="h-6 w-32" />
                     </CardHeader>
