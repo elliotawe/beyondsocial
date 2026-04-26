@@ -1,5 +1,7 @@
-import { getProjectById } from "@/app/actions/projects";
-import { notFound } from "next/navigation";
+"use client";
+
+import { useEffect, useState, use } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -13,19 +15,53 @@ import {
     Video,
     Share2,
     ExternalLink,
-    Zap
+    Zap,
+    Loader2
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProjectScheduler } from "@/components/dashboard/project-scheduler";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { IProject } from "@/lib/types";
 
-export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
-    const { id } = await params;
-    const project = await getProjectById(id);
+export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
+    const [project, setProject] = useState<IProject | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
 
-    if (!project) {
-        notFound();
+    useEffect(() => {
+        async function fetchProject() {
+            try {
+                const res = await fetch(`/api/projects/${id}`);
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        router.push("/404");
+                        return;
+                    }
+                    throw new Error("Failed to fetch project");
+                }
+                const data = await res.json();
+                setProject(data.project);
+            } catch (err) {
+                console.error(err);
+                toast.error("Failed to load project details");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchProject();
+    }, [id, router]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
     }
+
+    if (!project) return null;
 
     const isCompleted = project.status === "completed";
     const isProcessing = project.status === "processing";
@@ -189,7 +225,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
                         <div className="space-y-6">
                             {project.script ? (
                                 <div className="space-y-4 relative pl-8 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-linear-to-b before:from-primary/40 before:to-transparent">
-                                    {project.script.scenes.map((scene: any, idx: number) => (
+                                    {project.script.scenes.map((scene, idx: number) => (
                                         <div key={idx} className="relative group">
                                             {/* Timeline Node */}
                                             <div className="absolute -left-[25px] top-6 w-4 h-4 rounded-full border-2 border-primary bg-background z-10 shadow-sm group-hover:scale-125 transition-transform" />
@@ -216,7 +252,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
                                                             <div className="space-y-1">
                                                                 <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Script</p>
                                                                 <p className="text-lg font-medium leading-relaxed italic pr-4">
-                                                                    "{scene.script}"
+                                                                    &quot;{scene.script}&quot;
                                                                 </p>
                                                             </div>
                                                         </div>

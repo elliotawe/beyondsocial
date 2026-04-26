@@ -1,181 +1,148 @@
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
 
-export interface TrendingVideo {
-    id: string;
-    title: string;
-    videoUrl: string;
-    thumbnailUrl: string;
-    engagement: {
-        views: number;
-        likes: number;
-        comments: number;
-    };
-    metadata: {
-        caption: string;
-        hashtags: string[];
-        author: string;
-    };
-}
+// --- Schemas & Types ---
 
-export async function fetchTrendingVideos(industry: string): Promise<TrendingVideo[]> {
-    const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;
-    const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;
+/**
+ * NEW: Schema for AI-generated content ideation.
+ * Replaces the old scraper-based VideoSchema.
+ */
+export const IdeaSchema = z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    complexity: z.string().transform((val) => {
+        const v = val.toLowerCase();
+        if (v.includes("simple") || v.includes("easy")) return "simple";
+        if (v.includes("complex") || v.includes("hard")) return "complex";
+        return "moderate"; // Default to moderate for "medium", etc.
+    }),
+});
+// ... (rest of the file remains same, but I'll update the prompt below)
 
-    if (!TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET) {
-        console.warn("TikTok API credentials not set. Falling back to high-quality mock data.");
-        return getMockVideos(industry);
-    }
+export const IdeaSetSchema = z.object({
+    ideas: z.array(IdeaSchema),
+    hooks: z.array(z.string()),
+    patterns: z.array(z.string()),
+    formats: z.array(z.string()),
+});
 
+export type IdeaSet = z.infer<typeof IdeaSetSchema>;
+export type Idea = z.infer<typeof IdeaSchema>;
+
+/**
+ * Schema for detailed video concepts/scripts.
+ */
+export const ConceptSchema = z.object({
+    concept: z.string(),
+    hook: z.string(),
+    targetAudience: z.string(),
+    suggestedScript: z.string(),
+});
+
+export type Concept = z.infer<typeof ConceptSchema>;
+
+// --- Services ---
+
+/**
+ * Generates structured content ideas based on a user query.
+ * NO longer uses scraping. Purely LLM-driven viral strategy.
+ */
+export async function generateContentIdeas(topic: string): Promise<IdeaSet> {
     try {
-        console.log(`📡 Official TikTok Research API: Searching trends for "${industry}"...`);
+        console.log(`[Discovery] Simulating viral trends for: ${topic}`);
 
-        // 1. Get Access Token (Client Credentials Flow)
-        const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                client_key: TIKTOK_CLIENT_KEY,
-                client_secret: TIKTOK_CLIENT_SECRET,
-                grant_type: 'client_credentials'
-            })
+        const { text } = await generateText({
+            model: openai("gpt-4o"),
+            system: "You are a world-class social media strategist specializing in TikTok and Instagram Reels. Your goal is to generate viral content ideas that feel trending and high-conversion. You don't scrape; you simulate current trends based on your deep understanding of social media psychology.",
+            prompt: `
+                Generate a comprehensive content ideation set for the niche: "${topic}".
+                
+                You must return a JSON object with this exact structure:
+                {
+                    "ideas": [
+                        { "id": "uuid1", "title": "The First Idea", "description": "Engaging description", "complexity": "moderate" }
+                    ],
+                    "hooks": ["Viral Hook 1", "Viral Hook 2"],
+                    "patterns": ["Day in the life", "POV", "Tutorial"],
+                    "formats": ["Listicle", "Talking Head", "Aesthetic B-roll"]
+                }
+
+                Requirements:
+                - Generate 8-12 diverse video ideas.
+                - Complexity must be exactly one of: "simple", "moderate", "complex".
+                - Generate 6-10 powerful viral hooks.
+                - Generate 3-5 content patterns.
+                - Generate 3-5 optional formats.
+                - Ensure ideas are actionable and trendy for 2024-2025.
+            `,
         });
 
-        if (!tokenRes.ok) throw new Error("Failed to authenticate with TikTok API");
-        const { access_token } = await tokenRes.json();
+        const cleanedText = text.replace(/```json|```/g, "").trim();
+        const parsed = JSON.parse(cleanedText);
+        
+        const result = IdeaSetSchema.safeParse(parsed);
+        if (result.success) {
+            return result.data;
+        }
 
-        // 2. Query Public Videos
-        // Note: Requires research.data.basic scope approval
-        const queryRes = await fetch("https://open.tiktokapis.com/v2/research/video/query/?fields=id,video_description,create_time,view_count,like_count,comment_count,username,display_name,hashtag_names", {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${access_token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                query: {
-                    and: [
-                        { operation: "IN", field_name: "hashtag_name", field_values: [industry.toLowerCase().replace(/\s+/g, "")] }
-                    ]
-                },
-                start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0].replace(/-/g, ''), // Last 30 days
-                end_date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
-                max_count: 10
-            })
-        });
+        console.error("[Discovery] Zod validation failed for ideas:", result.error);
+        throw new Error("Invalid ideation format from AI");
 
-        if (!queryRes.ok) throw new Error("TikTok search query failed");
-
-        const { data } = await queryRes.json();
-        const videos = data.videos || [];
-
-        return videos.map((v: any) => ({
-            id: v.id,
-            title: v.video_description?.substring(0, 60) || `Trending in ${industry}`,
-            videoUrl: `https://www.tiktok.com/@${v.username}/video/${v.id}`,
-            thumbnailUrl: `https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=400&q=80`, // Placeholder
-            engagement: {
-                views: v.view_count || 0,
-                likes: v.like_count || 0,
-                comments: v.comment_count || 0
-            },
-            metadata: {
-                caption: v.video_description || "",
-                hashtags: v.hashtag_names || [],
-                author: v.display_name || v.username || "TikTok Creator"
-            }
-        }));
     } catch (error) {
-        console.error("TikTok API Error:", error);
-        return getMockVideos(industry);
+        console.error("[Discovery] Ideation failed:", error);
+        // Fallback data structure
+        return {
+            ideas: [{ id: "fallback", title: `Trending ${topic} Content`, description: "A high-energy video focusing on the core value of this niche.", complexity: "moderate" }],
+            hooks: ["Wait for the end to see the results!", "You won't believe how simple this is."],
+            patterns: ["The Problem / Solution", "The Expert Reveal"],
+            formats: ["Talking Head", "Text Overlay Style"]
+        };
     }
 }
 
-async function getMockVideos(industry: string): Promise<TrendingVideo[]> {
-    // High-quality fallback mock data
-    const mockVideos: Record<string, TrendingVideo[]> = {
-        "Real Estate": [
-            {
-                id: "re1",
-                title: "Luxury Penthouse Tour",
-                videoUrl: "https://cdn.coverr.co/videos/coverr-modern-apartment-interior-8557/1080p.mp4",
-                thumbnailUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&q=80",
-                engagement: { views: 250000, likes: 12000, comments: 450 },
-                metadata: {
-                    caption: "The view from this penthouse is unmatched. Would you live here?",
-                    hashtags: ["#luxuryrealestate", "#penthouseliving", "#architecture"],
-                    author: "EliteHomes"
-                }
-            }
-        ],
-        "Tech": [
-            {
-                id: "tech1",
-                title: "New AI Gadget Unboxing",
-                videoUrl: "https://cdn.coverr.co/videos/coverr-typing-on-laptop-2633/1080p.mp4",
-                thumbnailUrl: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=400&q=80",
-                engagement: { views: 500000, likes: 45000, comments: 1200 },
-                metadata: {
-                    caption: "Is this the end of smartphones? Testing the new AI Pin.",
-                    hashtags: ["#techreview", "#aigadgets", "#unboxing"],
-                    author: "TechGeek"
-                }
-            }
-        ]
-    };
-
-    return mockVideos[industry] || [
-        {
-            id: "gen1",
-            title: `Trending ${industry} Content`,
-            videoUrl: "https://cdn.coverr.co/videos/coverr-walking-through-a-forest-8575/1080p.mp4",
-            thumbnailUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=400&q=80",
-            engagement: { views: 100000, likes: 5000, comments: 100 },
-            metadata: {
-                caption: `Top trending content in ${industry} today!`,
-                hashtags: [industry.toLowerCase().replace(/\s+/g, ""), "trending", "content"],
-                author: "TrendScanner"
-            }
-        }
-    ];
-}
-
-export async function extractConceptFromVideo(video: TrendingVideo): Promise<{
-    concept: string;
-    hook: string;
-    targetAudience: string;
-    suggestedScript: string;
-}> {
+/**
+ * Generates a full video script based on a chosen idea.
+ */
+export async function generateScriptFromIdea(idea: Idea, topic: string): Promise<Concept> {
     try {
         const { text } = await generateText({
             model: openai("gpt-4o"),
             prompt: `
-                Analyze the following social media video details and extract a creative concept for a new AI-generated video.
+                Create a high-conversion social media content brief and script based on this selected idea:
                 
-                Video Title: ${video.title}
-                Caption: ${video.metadata.caption}
-                Hashtags: ${video.metadata.hashtags.join(", ")}
+                Idea Title: ${idea.title}
+                Description: ${idea.description}
+                Niche: ${topic}
                 
-                Return the following in JSON format:
+                Important: Return ONLY a JSON object with this structure:
                 {
-                    "concept": "A short, viral-ready concept based on the video's core appeal",
-                    "hook": "An attention-grabbing first line or visual hook",
-                    "targetAudience": "The specific demographic this appeals to",
-                    "suggestedScript": "A 15-30 second script structure (Introduction, Core Value, Call to Action)"
+                    "concept": "Detailed creative angle",
+                    "hook": "Specific viral hook text",
+                    "targetAudience": "Who this is for and why",
+                    "suggestedScript": "Script (Hook -> Value -> CTA)"
                 }
             `,
         });
 
-        // Parse clean JSON from AI response
         const cleanedText = text.replace(/```json|```/g, "").trim();
-        return JSON.parse(cleanedText);
+        const parsed = JSON.parse(cleanedText);
+        
+        const result = ConceptSchema.safeParse(parsed);
+        if (result.success) {
+            return result.data;
+        }
+
+        throw new Error("Invalid concept format from AI");
+
     } catch (error) {
-        console.error("AI extraction failed, using fallback:", error);
+        console.error("[Discovery] Script generation failed:", error);
         return {
-            concept: video.title,
-            hook: video.metadata.caption.split('.')[0] || "Check this out!",
-            targetAudience: `People interested in ${video.metadata.hashtags[0] || "this topic"}`,
-            suggestedScript: "Structure: Introduction, Main Content, Call to Action."
+            concept: idea.title,
+            hook: "Stop scrolling!",
+            targetAudience: `People interested in ${topic}`,
+            suggestedScript: `${idea.description}. Follow for more!`
         };
     }
 }

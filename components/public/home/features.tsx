@@ -8,8 +8,7 @@ import {
     MessageSquare,
     Calendar,
     BarChart3,
-    Layers,
-    Sparkles
+    Layers
 } from "lucide-react"
 
 const features = [

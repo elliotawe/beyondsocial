@@ -7,7 +7,6 @@ import { User, Mail, Lock, Loader2 } from "lucide-react";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { signUp } from "@/app/actions/auth";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -30,14 +29,28 @@ export function SignUpForm({
         setIsSignUpLoading(true);
 
         const formData = new FormData(e.currentTarget);
-        const result = await signUp(formData);
+        const data = Object.fromEntries(formData.entries());
 
-        if (result.error) {
-            toast.error(result.error);
+        try {
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || result.error) {
+                toast.error(result.error || "Something went wrong");
+                setIsSignUpLoading(false);
+            } else {
+                toast.success(result.message || "Account created successfully!");
+                router.push("/login");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to connect to the server");
             setIsSignUpLoading(false);
-        } else {
-            toast.success(result.success);
-            router.push("/login");
         }
     };
 
