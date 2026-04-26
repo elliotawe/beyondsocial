@@ -1,34 +1,64 @@
-// import Image from "next/image";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
-// import { auth } from "@/auth";
-import { getUserProjects } from "@/app/actions/projects";
 import {
-    Card, CardContent,
-    // CardHeader, CardTitle, CardDescription, CardFooter 
+    Card, CardContent
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
-    // Play, 
-    Calendar, Film, Image as ImageIcon
+    Calendar, Film, Image as ImageIcon, Loader2, Eye, Share2
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Project {
     _id: string;
     title: string;
     thumbnail: string | null;
     status: string;
+    socialStatus: string;
     createdAt: string;
+    analytics: {
+        views: number;
+        engagement: number;
+        shares: number;
+    };
 }
 
-export default async function ProjectsPage() {
-    // const session = await auth();
-    const projects = await getUserProjects();
+export default function ProjectsPage() {
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchProjects() {
+            try {
+                const res = await fetch("/api/projects");
+                if (!res.ok) throw new Error("Failed to fetch projects");
+                const data = await res.json();
+                setProjects(data.projects);
+            } catch (err) {
+                console.error(err);
+                toast.error("Failed to load projects");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchProjects();
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit">My Projects</h1>
@@ -67,9 +97,8 @@ export default async function ProjectsPage() {
                                         <Image
                                             src={project.thumbnail}
                                             alt={project.title}
-                                            width={48}
-                                            height={48}
-                                            className="w-12 h-12 rounded-xl object-cover border border-border/50"
+                                            fill
+                                            className="object-cover border-none"
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center">
@@ -93,13 +122,34 @@ export default async function ProjectsPage() {
                                     <h3 className="font-bold text-lg mb-2 line-clamp-1 group-hover:text-primary transition-colors">
                                         {project.title}
                                     </h3>
-                                    <div className="flex items-center text-sm text-muted-foreground gap-4">
+                                    <div className="flex items-center flex-wrap text-xs text-muted-foreground gap-3 mb-3">
                                         <div className="flex items-center gap-1.5">
-                                            <Calendar className="w-3.5 h-3.5" />
+                                            <Calendar className="w-3 h-3" />
                                             <span>{new Date(project.createdAt).toLocaleDateString()}</span>
                                         </div>
-                                        {/* Placeholder for duration or other meta */}
+                                        {(project.analytics?.views > 0) && (
+                                            <div className="flex items-center gap-1.5">
+                                                <Eye className="w-3 h-3" />
+                                                <span>{project.analytics.views.toLocaleString()} views</span>
+                                            </div>
+                                        )}
+                                        {(project.analytics?.shares > 0) && (
+                                            <div className="flex items-center gap-1.5">
+                                                <Share2 className="w-3 h-3" />
+                                                <span>{project.analytics.shares} shares</span>
+                                            </div>
+                                        )}
                                     </div>
+                                    {project.socialStatus && project.socialStatus !== "none" && (
+                                        <Badge variant="outline" className={cn(
+                                            "text-[9px] font-black uppercase tracking-widest border-none px-2 py-0.5",
+                                            project.socialStatus === "posted" ? "bg-emerald-500/10 text-emerald-500" :
+                                            project.socialStatus === "scheduled" ? "bg-blue-500/10 text-blue-500" :
+                                            "bg-muted text-muted-foreground"
+                                        )}>
+                                            {project.socialStatus === "posted" ? "Published" : project.socialStatus}
+                                        </Badge>
+                                    )}
                                 </CardContent>
                             </Card>
                         </Link>

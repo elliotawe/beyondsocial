@@ -1,38 +1,73 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
-import connectDB from "@/lib/db";
-import { User } from "@/models/User";
-import { getAdminStats, getAllUsers } from "@/app/actions/admin";
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-// import { Progress } from "@/components/ui/progress";
-import { Users, Video, Activity, ShieldCheck, /* Mail, Calendar, */ TrendingUp } from "lucide-react";
+import { Users, Video, Activity, ShieldCheck, TrendingUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { IUser, IAdminStats, IJob } from "@/lib/types";
 
-export default async function AdminOverview() {
-    const session = await auth();
-    if (!session?.user?.email) redirect("/login");
+export default function AdminOverview() {
+    const [stats, setStats] = useState<IAdminStats | null>(null);
+    const [users, setUsers] = useState<IUser[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    await connectDB();
-    const currentUser = await User.findOne({ email: session.user.email });
+    useEffect(() => {
+        async function fetchData() {
+            try {
+                const [statsRes, usersRes] = await Promise.all([
+                    fetch("/api/admin/stats"),
+                    fetch("/api/admin/users")
+                ]);
 
-    // Safety check for role (though middleware/layout should handle this)
-    if (!currentUser || currentUser.role !== "admin") {
+                if (!statsRes.ok || !usersRes.ok) {
+                    if (statsRes.status === 401 || usersRes.status === 401) {
+                        setError("Unauthorized");
+                        return;
+                    }
+                    throw new Error("Failed to fetch admin data");
+                }
+
+                const statsData = await statsRes.json();
+                const usersData = await usersRes.json();
+
+                setStats(statsData.stats);
+                setUsers(usersData.users);
+            } catch (err) {
+                console.error(err);
+                setError("Something went wrong");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchData();
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (error === "Unauthorized") {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
                 <ShieldCheck className="w-16 h-16 text-red-500" />
                 <h1 className="text-2xl font-bold">Access Denied</h1>
                 <p className="text-muted-foreground">You do not have administrative privileges.</p>
                 <Button variant="outline" asChild>
-                    <a href="/dashboard">Back to Dashboard</a>
+                    <Link href="/dashboard">Back to Dashboard</Link>
                 </Button>
             </div>
         );
     }
 
-    const stats = await getAdminStats();
-    const users = await getAllUsers();
+    if (!stats) return null;
 
     const statCards = [
         { title: "Total Platform Users", value: stats.totalUsers.toLocaleString(), icon: Users, trend: "Live", color: "text-blue-500" },
@@ -85,85 +120,82 @@ export default async function AdminOverview() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-7">
-                <div className="grid gap-6 lg:grid-cols-7">
-                    <Card className="lg:col-span-4 border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden">
-                        <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-lg font-bold">Account Index</CardTitle>
-                                    <CardDescription className="text-xs">Database dump of recently provisioned accounts.</CardDescription>
+                <Card className="lg:col-span-4 border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden">
+                    <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-lg font-bold">Account Index</CardTitle>
+                                <CardDescription className="text-xs">Database dump of recently provisioned accounts.</CardDescription>
+                            </div>
+                            <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-black tracking-widest hover:bg-primary/5 hover:text-primary" asChild>
+                                <Link href="/admin/users">Query All</Link>
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="divide-y divide-border/30">
+                            {users.slice(0, 6).map((user: IUser) => (
+                                <div key={user._id} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors group">
+                                    <div className="flex items-center space-x-4">
+                                        <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-xs font-black text-primary border border-primary/20 shadow-sm transition-transform group-hover:scale-105">
+                                            {user.name?.[0] || user.email[0].toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold group-hover:text-primary transition-colors">{user.name || "Anonymous Cluster"}</p>
+                                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-right">
+                                            <Badge variant="outline" className="text-[9px] font-black uppercase tracking-[0.2em] border-none bg-primary/5 text-primary px-2 py-0.5">
+                                                {user.planTier}
+                                            </Badge>
+                                            <p className="text-[10px] font-mono text-muted-foreground/60 mt-1">{user.credits} CREDITS</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-black tracking-widest hover:bg-primary/5 hover:text-primary" asChild>
-                                    <a href="/admin/users">Query All</a>
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y divide-border/30">
-                                {users.slice(0, 6).map((user: { _id: string, name?: string, email: string, planTier: string, credits: number }) => (
-                                    <div key={user._id} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors group">
-                                        <div className="flex items-center space-x-4">
-                                            <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-xs font-black text-primary border border-primary/20 shadow-sm transition-transform group-hover:scale-105">
-                                                {user.name?.[0] || user.email[0].toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold group-hover:text-primary transition-colors">{user.name || "Anonymous Cluster"}</p>
-                                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{user.email}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-6">
-                                            <div className="text-right">
-                                                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-[0.2em] border-none bg-primary/5 text-primary px-2 py-0.5">
-                                                    {user.planTier}
-                                                </Badge>
-                                                <p className="text-[10px] font-mono text-muted-foreground/60 mt-1">{user.credits} CREDITS</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
 
-                    <Card className="lg:col-span-3 border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden">
-                        <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="text-lg font-bold">Process Monitor</CardTitle>
-                                <Activity className="size-4 text-primary animate-pulse" />
-                            </div>
-                            <CardDescription className="text-xs">Live telemetry from background processing cluster.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y divide-border/30">
-                                {stats.recentJobs.map((job: { _id: string, type: string, createdAt: string, status: string }) => (
-                                    <div key={job._id} className="flex items-center justify-between p-4 bg-muted/5 hover:bg-primary/5 transition-colors group">
-                                        <div className="space-y-1">
-                                            <p className="text-xs font-bold uppercase tracking-widest group-hover:text-primary transition-colors">{job.type.replace('_', ' ')}</p>
-                                            <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-60">
-                                                {new Date(job.createdAt).toLocaleTimeString()} • ID: {job._id.slice(-6).toUpperCase()}
-                                            </p>
-                                        </div>
-                                        <Badge className={cn(
-                                            "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-sm border-none",
-                                            job.status === "completed" ? "bg-emerald-500/10 text-emerald-500" :
-                                                job.status === "failed" ? "bg-red-500/10 text-red-500" :
-                                                    "bg-blue-500/10 text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]"
-                                        )}>
-                                            {job.status}
-                                        </Badge>
+                <Card className="lg:col-span-3 border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden">
+                    <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg font-bold">Process Monitor</CardTitle>
+                            <Activity className="size-4 text-primary animate-pulse" />
+                        </div>
+                        <CardDescription className="text-xs">Live telemetry from background processing cluster.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="divide-y divide-border/30">
+                            {stats.recentJobs.map((job: IJob) => (
+                                <div key={job._id} className="flex items-center justify-between p-4 bg-muted/5 hover:bg-primary/5 transition-colors group">
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold uppercase tracking-widest group-hover:text-primary transition-colors">{job.type.replace('_', ' ')}</p>
+                                        <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-60">
+                                            {new Date(job.createdAt).toLocaleTimeString()} • ID: {job._id.slice(-6).toUpperCase()}
+                                        </p>
                                     </div>
-                                ))}
-                            </div>
-                            <div className="p-4 border-t border-border/30 bg-muted/20">
-                                <Button variant="ghost" className="w-full text-zinc-500 text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 hover:text-primary h-10" asChild>
-                                    <a href="/admin/jobs">System Queue</a>
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                                    <Badge className={cn(
+                                        "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-sm border-none",
+                                        job.status === "completed" ? "bg-emerald-500/10 text-emerald-500" :
+                                            job.status === "failed" ? "bg-red-500/10 text-red-500" :
+                                                "bg-blue-500/10 text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]"
+                                    )}>
+                                        {job.status}
+                                    </Badge>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-4 border-t border-border/30 bg-muted/20">
+                            <Button variant="ghost" className="w-full text-zinc-500 text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 hover:text-primary h-10" asChild>
+                                <Link href="/admin/jobs">System Queue</Link>
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
 }
-

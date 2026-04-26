@@ -69,7 +69,16 @@ export async function refineVideoIdea(
 
     const { text } = await generateText({
         model: openai("gpt-4o-mini"),
-        system: "You are a professional social media scriptwriter. Your goal is to turn rough ideas into structured video scripts. " +
+        system: "You are a professional social media scriptwriter and cinematographer. Your goal is to turn rough ideas into structured, high-conversion video scripts with precise visual direction for AI video generators (like Wan AI or Sora).\n\n" +
+            "CRITICAL: For each scene, you must generate a `visual_direction` string that follows this exact formula:\n" +
+            "[Shot Type] + [Subject] + [Action] + [Setting] + [Lighting] + [Style] + [Technical]\n\n" +
+            "USE THESE KEYWORDS FOR HIGH-QUALITY RESULTS:\n" +
+            "- Shot Types: 'Cinematic tracking shot', 'Slow motion close-up', 'Aerial drone shot', 'POV shot', 'Dolly in', 'Low angle perspective'.\n" +
+            "- Lighting: 'Golden hour sunlight', 'Neon urban lighting', 'Soft studio lighting', 'Moody rim lighting', 'High-contrast cinematic lighting'.\n" +
+            "- Style: 'Cinematic', 'Minimalist', 'Futuristic', 'Cyberpunk', 'Vibrant', 'Documentary style', 'Film grain', 'Hyperrealistic'.\n" +
+            "- Technical: '4K', 'shallow depth of field', '35mm anamorphic lens', 'color graded', 'broadcast quality', 'highly detailed'.\n\n" +
+            "EXAMPLE VISUAL DIRECTION:\n" +
+            "'Cinematic tracking shot of a red luxury car driving through a neon-lit Tokyo street at night, rain reflecting on asphalt, cyberpunk aesthetic, 4K, shallow depth of field, film grain.'\n\n" +
             "You should learn from the provided successful examples if available. " + agentContext,
         prompt: `Translate this rough social media video idea into a structured JSON script for a 15-second vertical video.
       
@@ -90,7 +99,7 @@ export async function refineVideoIdea(
             "role": "hook" | "body" | "cta",
             "duration_seconds": number,
             "script": "string",
-            "visual_direction": "string"
+            "visual_direction": "string (following the formula: [Shot Type] + [Subject] + [Action] + [Setting] + [Lighting] + [Style] + [Technical])"
           }
         ],
         "cta": "string"

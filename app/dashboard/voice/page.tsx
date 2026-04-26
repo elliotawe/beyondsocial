@@ -1,20 +1,17 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import {
     Mic,
     Square,
     Play,
     Trash2,
-    Check,
-    Loader2,
-    AlertCircle,
     ShieldCheck,
-    Info,
-    ArrowRight,
     Sparkles,
-    Volume2
+    Volume2,
+    ArrowRight,
+    AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"

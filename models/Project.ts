@@ -30,6 +30,8 @@ const ProjectSchema = new Schema(
         // Assets
         uploadedImages: [String],
         generatedVideoUrl: String,
+        cloudinaryUrl: String,
+        cloudinaryPublicId: String,
         taskId: String, // Wan AI Task ID
 
         // Metadata

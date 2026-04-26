@@ -7,7 +7,8 @@ import Logo from "@/components/partials/logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 
 export interface NavLink {
@@ -92,13 +93,13 @@ export default function DashboardLayoutShell({
                                     <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-muted-foreground/60">Balance</p>
                                     <div className="flex items-center gap-1">
                                         <div className="size-1.5 rounded-full bg-primary animate-pulse" />
-                                        <p className="text-xs font-black font-outfit text-primary">{user.credits} <span className="text-[10px] font-bold text-muted-foreground/50">/ {user.planTier === "free" ? "5" : user.planTier === "pro" ? "50" : "∞"}</span></p>
+                                        <p className="text-xs font-black font-outfit text-primary">{user.credits} <span className="text-[10px] font-bold text-muted-foreground/50">/ {user.planTier === "free" ? "15" : user.planTier === "pro" ? "60" : "200"} mo</span></p>
                                     </div>
                                 </div>
                                 <div className="h-2 w-full bg-muted/50 rounded-full overflow-hidden border border-border/10 p-px">
                                     <div
                                         className="h-full bg-linear-to-r from-primary/80 to-primary rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(var(--primary),0.3)]"
-                                        style={{ width: `${Math.min(100, (user.credits / (user.planTier === "free" ? 5 : user.planTier === "pro" ? 50 : 100)) * 100)}%` }}
+                                        style={{ width: `${Math.min(100, (user.credits / (user.planTier === "free" ? 15 : user.planTier === "pro" ? 60 : 200)) * 100)}%` }}
                                     />
                                 </div>
                                 <div className="flex items-center gap-2 group cursor-pointer">
@@ -116,10 +117,13 @@ export default function DashboardLayoutShell({
                                     href: requiredRole === "admin" ? "/admin/settings" : "/dashboard/settings",
                                     icon: (
                                         <div className="relative">
-                                            <img
-                                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&bold=true`}
+                                            <Image
+                                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || "")}&background=random&bold=true`}
                                                 className="h-8 w-8 shrink-0 rounded-xl object-cover ring-2 ring-background ring-offset-2 ring-offset-primary/10 transition-all group-hover:scale-105"
                                                 alt="Avatar"
+                                                width={32}
+                                                height={32}
+                                                unoptimized
                                             />
                                             <div className="absolute -bottom-0.5 -right-0.5 size-2.5 bg-emerald-500 border-2 border-background rounded-full" />
                                         </div>

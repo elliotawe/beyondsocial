@@ -10,7 +10,9 @@ const UserSchema = new Schema(
         // Custom SaaS Fields
         stripeCustomerId: { type: String },
         planTier: { type: String, default: "free", enum: ["free", "pro", "business"] },
-        credits: { type: Number, default: 5 }, // Default 5 free credits
+        credits: { type: Number, default: 15 },
+        monthlyCreditsUsed: { type: Number, default: 0 },
+        lastCreditReset: { type: Date, default: null },
         role: { type: String, default: "user", enum: ["user", "admin"] },
         password: { type: String },
 

@@ -7,7 +7,6 @@ import { Mail, Lock, Loader2 /*, ShieldCheck */ } from "lucide-react";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { loginWithCredentials } from "@/app/actions/auth";
 import { toast } from "sonner";
 
 export function LoginForm({
@@ -28,10 +27,27 @@ export function LoginForm({
     setIsCredentialsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const result = await loginWithCredentials(formData);
+    const data = Object.fromEntries(formData.entries());
 
-    if (result?.error) {
-      toast.error(result.error);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        toast.error(result.error || "Login failed");
+        setIsCredentialsLoading(false);
+      } else {
+        toast.success("Welcome back!");
+        window.location.href = "/dashboard"; // Use location.href to ensure a full refresh for NextAuth session
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to connect to the server");
       setIsCredentialsLoading(false);
     }
   };

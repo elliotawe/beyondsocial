@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Clock, Share2, /* Check, */ AlertCircle, Loader2 } from "lucide-react";
-import { scheduleProjectPost, cancelProjectSchedule } from "@/app/actions/projects";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
 interface ProjectSchedulerProps {
     projectId: string;
-    initialScheduledAt: string | null;
+    initialScheduledAt: string | Date | null | undefined;
     initialPlatforms: string[];
     socialStatus: string;
 }
@@ -29,9 +28,15 @@ export function ProjectScheduler({
     initialPlatforms,
     socialStatus: initialSocialStatus,
 }: ProjectSchedulerProps) {
-    const [scheduledAt, setScheduledAt] = useState<string>(
-        initialScheduledAt ? initialScheduledAt.slice(0, 16) : ""
-    );
+    const [scheduledAt, setScheduledAt] = useState<string>(() => {
+        if (!initialScheduledAt) return "";
+        const date = initialScheduledAt instanceof Date ? initialScheduledAt : new Date(initialScheduledAt);
+        try {
+            return date.toISOString().slice(0, 16);
+        } catch {
+            return "";
+        }
+    });
     const [platforms, setPlatforms] = useState<string[]>(initialPlatforms);
     const [socialStatus, setSocialStatus] = useState(initialSocialStatus);
     const [isSaving, setIsSaving] = useState(false);
@@ -56,10 +61,17 @@ export function ProjectScheduler({
         setIsSaving(true);
         setError(null);
         try {
-            await scheduleProjectPost(projectId, {
-                scheduledAt,
-                platforms,
+            const response = await fetch(`/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    scheduledAt,
+                    platforms,
+                }),
             });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Failed to schedule post");
+            
             setSocialStatus("scheduled");
         } catch (err: unknown) {
             setError((err as Error).message || "Failed to schedule post.");
@@ -72,7 +84,14 @@ export function ProjectScheduler({
         setIsSaving(true);
         setError(null);
         try {
-            await cancelProjectSchedule(projectId);
+            const response = await fetch(`/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cancelSchedule: true }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Failed to cancel schedule");
+
             setSocialStatus("idle");
             setScheduledAt("");
         } catch (err: unknown) {

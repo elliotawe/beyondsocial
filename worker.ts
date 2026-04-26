@@ -4,15 +4,7 @@ dotenv.config({ path: ".env.local" });
 import connectDB from "./lib/db";
 import { Job } from "./models/Job";
 import { Project } from "./models/Project";
-import {
-    // refineVideoIdea, 
-    getWanVideoStatus
-} from "./app/actions/ai-video";
-// Note: We might need to refactor actions to be pure functions if they rely on "use server" context which might not work in standalone worker easily without build. 
-// However, since they are just functions, it should be fine if we import the logic or move logic to a shared lib.
-// Check app/actions/ai-video.ts content. It has "use server" at top.
-// Importing "use server" files in a standalone worker script might fail in some Next.js setups or work fine in others depending on how it's bundled.
-// Safer approach: Move core logic to `lib/ai-service.ts` and have both actions and worker use it.
+import { getWanVideoStatus } from "./lib/ai-service";
 
 import { postVideoToSocial } from "./lib/social-service";
 import { fetchProjectAnalytics } from "./lib/analytics-service";
