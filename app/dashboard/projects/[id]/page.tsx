@@ -78,7 +78,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     </Button>
                     <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-bold font-outfit tracking-tight">{project.title}</h1>
+                            <h1 className="text-3xl font-bold  tracking-tight">{project.title}</h1>
                             <Badge
                                 variant="outline"
                                 className={cn(
@@ -174,11 +174,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <div className="grid grid-cols-2 gap-4">
                             <div className="p-4 rounded-[28px] bg-card/40 border border-border/40 backdrop-blur-sm text-center space-y-1">
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Format</p>
-                                <p className="font-bold font-outfit">Vertical (9:16)</p>
+                                <p className="font-bold ">Vertical (9:16)</p>
                             </div>
                             <div className="p-4 rounded-[28px] bg-card/40 border border-border/40 backdrop-blur-sm text-center space-y-1">
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Engine</p>
-                                <p className="font-bold font-outfit">Wan 2.6 Flash</p>
+                                <p className="font-bold ">Wan 2.6 Flash</p>
                             </div>
                         </div>
                     </div>
@@ -190,7 +190,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     {/* Distribution Section (Priority) */}
                     {isCompleted && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-700 delay-100">
-                            <h3 className="text-lg font-bold font-outfit mb-4 flex items-center gap-2">
+                            <h3 className="text-lg font-bold  mb-4 flex items-center gap-2">
                                 <Share2 className="w-5 h-5 text-primary" />
                                 Distribution & Scheduling
                             </h3>
@@ -206,7 +206,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     {/* Creative Blueprint */}
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-700 delay-200">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold font-outfit flex items-center gap-2">
+                            <h3 className="text-lg font-bold  flex items-center gap-2">
                                 <Sparkles className="w-5 h-5 text-primary" />
                                 Creative Blueprint
                             </h3>
@@ -278,7 +278,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                                 <Type className="w-4 h-4" />
                                                 <p className="text-[10px] font-bold uppercase tracking-widest">Post-Roll Call to Action</p>
                                             </div>
-                                            <p className="text-xl font-bold font-outfit tracking-tight">
+                                            <p className="text-xl font-bold  tracking-tight">
                                                 {project.script.cta}
                                             </p>
                                         </div>

@@ -7,8 +7,10 @@ import { z } from "zod";
 
 const UpdateProjectSchema = z.object({
     // Draft updates
-    script: z.record(z.string(), z.unknown()),
+    script: z.record(z.string(), z.unknown()).optional(),
     uploadedImages: z.array(z.string()).optional(),
+    portraitImageUrl: z.string().url().optional(),
+    videoType: z.enum(["person", "product", "property"]).optional(),
     // Scheduling updates
     scheduledAt: z.string().optional(),
     platforms: z.array(z.string()).optional(),
@@ -92,6 +94,8 @@ export async function PATCH(
             // General draft update
             if (data.script) updateData.script = data.script;
             if (data.uploadedImages) updateData.uploadedImages = data.uploadedImages;
+            if (data.portraitImageUrl) updateData.portraitImageUrl = data.portraitImageUrl;
+            if (data.videoType) updateData.videoType = data.videoType;
         }
 
         const project = await Project.findOneAndUpdate(

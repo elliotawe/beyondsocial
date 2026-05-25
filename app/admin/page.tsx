@@ -80,7 +80,7 @@ export default function AdminOverview() {
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
                 <div>
-                    <h1 className="text-4xl font-black tracking-tighter mb-2 font-outfit uppercase italic bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-black tracking-tighter mb-2 uppercase italic text-foreground">
                         Infrastructure
                     </h1>
                     <p className="text-muted-foreground font-medium flex items-center gap-2">
@@ -105,7 +105,7 @@ export default function AdminOverview() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-black font-outfit tracking-tighter">{stat.value}</div>
+                            <div className="text-3xl font-black  tracking-tighter">{stat.value}</div>
                             <div className="mt-3 flex items-center justify-between">
                                 <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
                                     {stat.trend}

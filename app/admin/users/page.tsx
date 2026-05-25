@@ -79,7 +79,7 @@ export default function UserManagementPage() {
         <div className="p-8 space-y-8 max-w-7xl mx-auto animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-2 font-outfit uppercase italic">User Management</h1>
+                    <h1 className="text-3xl font-bold tracking-tight mb-2  uppercase italic">User Management</h1>
                     <p className="text-muted-foreground">Monitor accounts, adjust credits, and manage platform roles.</p>
                 </div>
                 <div className="flex gap-2">

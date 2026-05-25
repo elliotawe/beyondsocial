@@ -69,16 +69,15 @@ export async function refineVideoIdea(
 
     const { text } = await generateText({
         model: openai("gpt-4o-mini"),
-        system: "You are a professional social media scriptwriter and cinematographer. Your goal is to turn rough ideas into structured, high-conversion video scripts with precise visual direction for AI video generators (like Wan AI or Sora).\n\n" +
-            "CRITICAL: For each scene, you must generate a `visual_direction` string that follows this exact formula:\n" +
-            "[Shot Type] + [Subject] + [Action] + [Setting] + [Lighting] + [Style] + [Technical]\n\n" +
-            "USE THESE KEYWORDS FOR HIGH-QUALITY RESULTS:\n" +
-            "- Shot Types: 'Cinematic tracking shot', 'Slow motion close-up', 'Aerial drone shot', 'POV shot', 'Dolly in', 'Low angle perspective'.\n" +
-            "- Lighting: 'Golden hour sunlight', 'Neon urban lighting', 'Soft studio lighting', 'Moody rim lighting', 'High-contrast cinematic lighting'.\n" +
-            "- Style: 'Cinematic', 'Minimalist', 'Futuristic', 'Cyberpunk', 'Vibrant', 'Documentary style', 'Film grain', 'Hyperrealistic'.\n" +
-            "- Technical: '4K', 'shallow depth of field', '35mm anamorphic lens', 'color graded', 'broadcast quality', 'highly detailed'.\n\n" +
+        system: "You are a professional social media scriptwriter and video director. Your goal is to turn rough ideas into structured, high-conversion video scripts with precise visual direction optimised for Kling 2.5 Turbo Pro image-to-video generation.\n\n" +
+            "CRITICAL: For each scene, you must generate a `visual_direction` string that follows this exact Kling 2.5 Turbo Pro format:\n" +
+            "[Camera movement]. [Subject description]. [Lighting]. [Mood]. Photorealistic. No text overlays. 9:16 vertical frame.\n\n" +
+            "USE THESE KEYWORDS FOR HIGH-QUALITY KLING RESULTS:\n" +
+            "- Camera movements: 'Slow push-in', 'Cinematic tracking shot', 'Gentle handheld', 'Smooth dolly in', 'Low angle rise', 'Orbital pan'.\n" +
+            "- Lighting: 'Golden hour sunlight', 'Neon urban lighting', 'Soft diffused studio lighting', 'Moody rim lighting', 'High-contrast cinematic lighting'.\n" +
+            "- Mood/Style: 'Photorealistic', 'Cinematic', 'Minimalist', 'Vibrant', 'Documentary', 'Hyperrealistic'.\n\n" +
             "EXAMPLE VISUAL DIRECTION:\n" +
-            "'Cinematic tracking shot of a red luxury car driving through a neon-lit Tokyo street at night, rain reflecting on asphalt, cyberpunk aesthetic, 4K, shallow depth of field, film grain.'\n\n" +
+            "'Slow push-in. Red luxury car parked on a rain-slicked Tokyo street at night, neon reflections in puddles. Moody rim lighting with blue and purple tones. Cinematic mood. Photorealistic. No text overlays. 9:16 vertical frame.'\n\n" +
             "You should learn from the provided successful examples if available. " + agentContext,
         prompt: `Translate this rough social media video idea into a structured JSON script for a 15-second vertical video.
       
@@ -115,70 +114,30 @@ export async function refineVideoIdea(
     }
 }
 
-export async function generateWanVideo(imageUrl: string, prompt: string) {
-    const apiKey = process.env.DASHSCOPE_API_KEY;
-    if (!apiKey) {
-        throw new Error("DASHSCOPE_API_KEY is not configured on the server.");
-    }
+// Wan 2.6 Flash removed — video generation now handled by the Inngest orchestrator
+// in lib/inngest/generate-premium-video.ts using Creatify Aurora + Kling 2.5 via fal.ai
 
-    const response = await fetch("https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "X-DashScope-Async": "enable"
-        },
-        body: JSON.stringify({
-            model: "wan2.6-i2v-flash",
-            input: {
-                img_url: imageUrl,
-                prompt: prompt
-            },
-            parameters: {
-                resolution: "720P",
-                duration: 10,
-                prompt_extend: true,
-                // watermark: true,
-                shot_type: "multi"
-            }
-        })
+/**
+ * Generates per-image Kling 2.5 Turbo Pro prompts for a set of images and a script.
+ * Used internally by lib/scene-planner.ts.
+ */
+export async function generateScenePrompts(params: {
+    imageUrls: string[];
+    scenes: RefinedScript["scenes"];
+    style: string;
+    tone: string;
+    industry: string;
+}): Promise<string[]> {
+    const { imageUrls, scenes, style, tone, industry } = params;
+    const { text } = await generateText({
+        model: openai("gpt-4o-mini"),
+        system: "You are a Kling 2.5 Turbo Pro video director. Write one concise prompt per image following this format: '[Camera movement]. [Subject]. [Lighting]. [Mood]. Photorealistic. No text overlays. 9:16 vertical frame.'",
+        prompt: `Write ${imageUrls.length} Kling 2.5 prompts for these scenes. Industry: ${industry}. Style: ${style}. Tone: ${tone}.\n\nScenes:\n${scenes.map((s, i) => `${i + 1}. [${s.role}] ${s.visual_direction}`).join("\n")}\n\nReturn ONLY a JSON array of ${imageUrls.length} prompt strings.`,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        console.error("Wan AI Submission Error:", data);
-        throw new Error(data.message || "Failed to submit video generation task to Wan AI.");
+    try {
+        const cleaned = text.replace(/```json|```/g, "").trim();
+        return JSON.parse(cleaned) as string[];
+    } catch {
+        return imageUrls.map((_, i) => `${style} shot. ${scenes[i % scenes.length]?.visual_direction ?? "Cinematic scene"}. ${tone} mood. Photorealistic. No text overlays. 9:16 vertical frame.`);
     }
-
-    return {
-        taskId: data.output.task_id,
-        status: data.output.task_status
-    };
-}
-
-export async function getWanVideoStatus(taskId: string) {
-    const apiKey = process.env.DASHSCOPE_API_KEY;
-    if (!apiKey) {
-        throw new Error("DASHSCOPE_API_KEY is not configured.");
-    }
-
-    const response = await fetch(`https://dashscope-intl.aliyuncs.com/api/v1/tasks/${taskId}`, {
-        headers: {
-            "Authorization": `Bearer ${apiKey}`
-        }
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data.message || "Failed to check task status.");
-    }
-
-    return {
-        status: data.output.task_status,
-        videoUrl: data.output.video_url,
-        message: data.output.message,
-        taskId: data.output.task_id
-    };
 }

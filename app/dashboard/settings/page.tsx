@@ -228,7 +228,7 @@ export default function SettingsPage() {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit">Settings</h1>
+                <h1 className="text-3xl font-bold tracking-tight mb-1 ">Settings</h1>
                 <p className="text-muted-foreground">Manage your account and platform preferences.</p>
             </div>
 
@@ -530,17 +530,17 @@ export default function SettingsPage() {
                                             <div className="grid md:grid-cols-3 gap-4">
                                                 <div className="p-5 rounded-2xl bg-muted/30 border border-border/40 space-y-1">
                                                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Remaining</p>
-                                                    <p className="text-3xl font-extrabold font-outfit">{creditData.credits}</p>
+                                                    <p className="text-3xl font-extrabold ">{creditData.credits}</p>
                                                     <p className="text-xs text-muted-foreground">of {creditData.monthlyLimit} credits</p>
                                                 </div>
                                                 <div className="p-5 rounded-2xl bg-muted/30 border border-border/40 space-y-1">
                                                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Used This Month</p>
-                                                    <p className="text-3xl font-extrabold font-outfit">{creditData.monthlyCreditsUsed}</p>
+                                                    <p className="text-3xl font-extrabold ">{creditData.monthlyCreditsUsed}</p>
                                                     <p className="text-xs text-muted-foreground">credits consumed</p>
                                                 </div>
                                                 <div className="p-5 rounded-2xl bg-muted/30 border border-border/40 space-y-1">
                                                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resets On</p>
-                                                    <p className="text-xl font-extrabold font-outfit">{format(nextReset, "MMM d")}</p>
+                                                    <p className="text-xl font-extrabold ">{format(nextReset, "MMM d")}</p>
                                                     <p className="text-xs text-muted-foreground">{format(nextReset, "yyyy")}</p>
                                                 </div>
                                             </div>
@@ -583,7 +583,7 @@ export default function SettingsPage() {
                                                             )}
                                                         >
                                                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{plan}</p>
-                                                            <p className="text-2xl font-extrabold font-outfit">{limit}</p>
+                                                            <p className="text-2xl font-extrabold ">{limit}</p>
                                                             <p className="text-[10px] text-muted-foreground">credits/mo</p>
                                                             {user?.planTier === plan && (
                                                                 <Badge className="text-[9px] bg-primary/10 text-primary border-none">Current</Badge>

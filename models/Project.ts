@@ -14,9 +14,10 @@ const ProjectSchema = new Schema(
         title: { type: String, required: true },
         status: {
             type: String,
-            enum: ["draft", "processing", "completed", "failed"],
+            enum: ["draft", "queued", "processing", "completed", "failed"],
             default: "draft",
         },
+        error: String,                       // failure reason written by Inngest on failed status
 
         // AI Data
         roughIdea: String,
@@ -30,9 +31,21 @@ const ProjectSchema = new Schema(
         // Assets
         uploadedImages: [String],
         generatedVideoUrl: String,
+        videoUrl: String,                    // final composed video URL (Shotstack output)
         cloudinaryUrl: String,
         cloudinaryPublicId: String,
-        taskId: String, // Wan AI Task ID
+        taskId: String,                      // legacy Wan AI Task ID (kept for existing records)
+
+        // Premium pipeline assets
+        videoType: { type: String, enum: ["person", "product", "property"], default: "person" },
+        portraitImageUrl: String,            // headshot for avatar (person-led videos only)
+        avatarClipUrl: String,               // Creatify Aurora output
+        brollClipUrls: [String],             // Kling 2.5 outputs, one per image
+        generationEngine: String,            // e.g. "creatify-aurora+kling-2.5+shotstack"
+        scenePlan: { type: Object },         // planScenes() output
+        renderId: String,                    // Shotstack render ID
+        industry: String,                    // industry from discovery step
+        voice: String,                       // voice preference
 
         // Metadata
         aspectRatio: { type: String, default: "9:16" },

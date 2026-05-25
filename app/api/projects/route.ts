@@ -11,6 +11,8 @@ const CreateDraftSchema = z.object({
     style: z.string().optional(),
     tone: z.string().optional(),
     useClonedVoice: z.boolean().optional(),
+    industry: z.string().optional(),
+    uploadedImages: z.array(z.string()).optional(),
 });
 
 export async function GET() {
@@ -73,10 +75,12 @@ export async function POST(req: NextRequest) {
             title: data.title || "Untitled Draft",
             roughIdea: data.roughIdea,
             status: "draft",
+            industry: data.industry,
+            uploadedImages: data.uploadedImages ?? [],
+            voice: data.useClonedVoice ? "cloned" : "default",
             script: {
                 video_style: data.style,
                 tone: data.tone,
-                useClonedVoice: data.useClonedVoice
             }
         });
 

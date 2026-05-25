@@ -71,7 +71,7 @@ export default function CustomerSupport() {
 
             <Card className="border-none shadow-sm dark:bg-zinc-900 overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
-                    <div className="relative w-96 font-outfit">
+                    <div className="relative w-96 ">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground " />
                         <Input placeholder="Search tickets, users, or keywords..." className="pl-9 rounded-xl h-10" />
                     </div>
