@@ -42,7 +42,7 @@ export default function AnalyticsPage() {
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit">Analytics Overview</h1>
+                    <h1 className="text-3xl font-bold tracking-tight mb-1 ">Analytics Overview</h1>
                     <p className="text-muted-foreground">Deep dive into your content performance and audience demographics.</p>
                 </div>
                 <Button variant="outline" className="rounded-xl">
@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
                                 <span className="text-xs font-bold text-emerald-500">{stat.trend}</span>
                             </div>
                             <p className="text-sm font-medium text-muted-foreground mb-1">{stat.title}</p>
-                            <p className="text-2xl font-bold font-outfit">{stat.value}</p>
+                            <p className="text-2xl font-bold ">{stat.value}</p>
                         </CardContent>
                     </Card>
                 ))}

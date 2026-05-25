@@ -4,8 +4,6 @@ dotenv.config({ path: ".env.local" });
 import connectDB from "./lib/db";
 import { Job } from "./models/Job";
 import { Project } from "./models/Project";
-import { getWanVideoStatus } from "./lib/ai-service";
-
 import { postVideoToSocial } from "./lib/social-service";
 import { fetchProjectAnalytics } from "./lib/analytics-service";
 
@@ -23,56 +21,9 @@ async function startWorker() {
     startAnalyticsLoop();
 }
 
-/**
- * Polls Wan AI for tasks associated with projects in "processing" status
- */
+// Video status is now managed by Inngest + webhooks. No polling needed.
 async function startStatusSyncLoop() {
-    console.log("Status sync loop started...");
-    while (true) {
-        try {
-            const processingProjects = await Project.find({
-                status: "processing",
-                taskId: { $exists: true, $ne: null }
-            });
-
-            if (processingProjects.length > 0) {
-                console.log(`[StatusSync] Checking ${processingProjects.length} processing projects.`);
-                for (const project of processingProjects) {
-                    try {
-                        const res = await getWanVideoStatus(project.taskId);
-                        if (res.status === "SUCCEEDED" && res.videoUrl) {
-                            console.log(`[StatusSync] Project ${project._id} SUCCEEDED.`);
-                            project.status = "completed";
-                            project.generatedVideoUrl = res.videoUrl;
-                            await project.save();
-
-                            // Update associated Job record if exists
-                            await Job.findOneAndUpdate(
-                                { "payload.projectId": project._id, type: "video_generation" },
-                                { status: "completed", result: { videoUrl: res.videoUrl } }
-                            );
-                        } else if (res.status === "FAILED") {
-                            console.log(`[StatusSync] Project ${project._id} FAILED.`);
-                            project.status = "failed";
-                            await project.save();
-
-                            await Job.findOneAndUpdate(
-                                { "payload.projectId": project._id, type: "video_generation" },
-                                { status: "failed", error: res.message || "Wan AI Generation Failed" }
-                            );
-                        }
-                        // If PENDING/RUNNING, just wait for next loop
-                    } catch (err: unknown) {
-                        console.error(`[StatusSync] Error checking project ${project._id}:`, err);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error("Status sync loop error:", error);
-        }
-        // Poll every 10 seconds for efficiency (since frontend also has an accelerator poll)
-        await new Promise(resolve => setTimeout(resolve, 10000));
-    }
+    console.log("Status sync: handled by Inngest — no polling required.");
 }
 
 async function startScheduler() {

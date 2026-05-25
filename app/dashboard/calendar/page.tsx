@@ -95,7 +95,7 @@ export default function ContentCalendarPage() {
         <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit">Content Calendar</h1>
+                    <h1 className="text-3xl font-bold tracking-tight mb-1 ">Content Calendar</h1>
                     <p className="text-muted-foreground">Plan and track your social media presence.</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ export default function ContentCalendarPage() {
                             <CalendarIcon className="w-6 h-6 text-primary" />
                         </div>
                         <div className="flex items-center gap-3">
-                            <h2 className="text-2xl font-bold font-outfit">
+                            <h2 className="text-2xl font-bold ">
                                 {format(currentMonth, "MMMM yyyy")}
                             </h2>
                             {!isSameMonth(currentMonth, today) && (
@@ -185,7 +185,7 @@ export default function ContentCalendarPage() {
             <div className="grid gap-8 md:grid-cols-3">
                 <Card className="md:col-span-2 border-border/40 shadow-sm rounded-[32px] overflow-hidden bg-card/50 backdrop-blur-sm">
                     <CardHeader className="py-8 px-8">
-                        <CardTitle className="text-xl font-bold font-outfit">Upcoming Schedule</CardTitle>
+                        <CardTitle className="text-xl font-bold ">Upcoming Schedule</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 px-8 pb-8">
                         {upcomingScheduled.length > 0 ? (
@@ -231,7 +231,7 @@ export default function ContentCalendarPage() {
 
                 <Card className="border-border/40 shadow-sm rounded-[32px] bg-card/50 backdrop-blur-sm overflow-hidden">
                     <CardHeader className="py-8 px-8">
-                        <CardTitle className="text-xl font-bold font-outfit">Legend</CardTitle>
+                        <CardTitle className="text-xl font-bold ">Legend</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6 px-8 pb-8">
                         <div className="flex items-center gap-4">

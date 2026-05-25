@@ -372,7 +372,7 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0 }}
                                             transition={{ duration: 0.18 }}
-                                            className="text-white text-2xl font-black drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] font-outfit leading-tight"
+                                            className="text-white text-2xl font-black drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]  leading-tight"
                                             style={{ textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}
                                         >
                                             {cap.text}

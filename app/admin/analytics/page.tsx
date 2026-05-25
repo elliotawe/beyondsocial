@@ -50,7 +50,7 @@ export default function PlatformAnalytics() {
         <div className="max-w-7xl mx-auto space-y-8 pb-12 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-1 font-outfit">System Analytics</h1>
+                    <h1 className="text-3xl font-bold tracking-tight mb-1 ">System Analytics</h1>
                     <p className="text-muted-foreground">Monitor platform-wide growth, user retention, and generation trends.</p>
                 </div>
                 <div className="flex gap-2">
@@ -82,7 +82,7 @@ export default function PlatformAnalytics() {
                                 </span>
                             </div>
                             <p className="text-sm font-medium text-muted-foreground mb-1">{stat.title}</p>
-                            <p className="text-2xl font-bold font-outfit">{stat.value}</p>
+                            <p className="text-2xl font-bold ">{stat.value}</p>
                         </CardContent>
                     </Card>
                 ))}

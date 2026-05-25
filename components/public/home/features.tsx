@@ -1,6 +1,5 @@
 "use client"
 
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { motion } from "framer-motion"
 import {
     Zap,
@@ -13,110 +12,99 @@ import {
 
 const features = [
     {
-        title: "AI-Powered Script Writing",
-        description: "Chat with our AI to refine scripts, hooks, and calls-to-action that capture attention in the first 3 seconds.",
+        title: "Script writing",
+        description: "Describe your idea or pick a trending angle. The AI writes a structured script with a hook, body scenes, and a clear CTA — ready to shoot.",
         icon: MessageSquare,
-        className: "md:col-span-2 md:row-span-2 bg-linear-to-br from-primary/10 via-background to-background",
-        iconColor: "text-primary"
+        large: true,
+        accent: false,
     },
     {
-        title: "Image-to-Video",
-        description: "Turn static assets into cinematic 9:16 videos.",
+        title: "Image to video",
+        description: "Upload a photo and get a 9:16 clip with AI motion.",
         icon: Video,
-        className: "md:col-span-1 md:row-span-1",
-        iconColor: "text-accent"
+        large: false,
+        accent: true,
     },
     {
-        title: "Auto Captions",
-        description: "Pixel-perfect captions and trending hashtags.",
+        title: "Captions and hashtags",
+        description: "Auto-generated, format-matched, ready to copy.",
         icon: Zap,
-        className: "md:col-span-1 md:row-span-1",
-        iconColor: "text-yellow-500"
+        large: false,
+        accent: false,
     },
     {
-        title: "Social Scheduling",
-        description: "One-click publishing to TikTok, IG, and LinkedIn.",
+        title: "Social scheduling",
+        description: "TikTok, Instagram, LinkedIn, and Facebook — one click.",
         icon: Calendar,
-        className: "md:col-span-1 md:row-span-1",
-        iconColor: "text-blue-500"
+        large: false,
+        accent: false,
     },
     {
-        title: "Content Intelligence",
-        description: "AI-driven analytics that tell you exactly what content will perform best for your specific industry.",
+        title: "Performance insights",
+        description: "See which formats, lengths, and topics are actually driving views and engagement for your audience.",
         icon: BarChart3,
-        className: "md:col-span-2 md:row-span-1 bg-linear-to-tr from-accent/5 via-background to-background",
-        iconColor: "text-accent"
+        large: true,
+        accent: false,
     },
     {
-        title: "Brand Consistency",
-        description: "Maintain your voice and style across every video.",
+        title: "Brand voice",
+        description: "Your tone and style persist across every video.",
         icon: Layers,
-        className: "md:col-span-1 md:row-span-1",
-        iconColor: "text-purple-500"
+        large: false,
+        accent: false,
     }
 ]
 
-const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.1
-        }
-    }
-}
-
-const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-}
-
 export default function Features() {
     return (
-        <section id="features" className="py-32 px-6 relative overflow-hidden">
+        <section id="features" className="py-32 px-6">
             <div className="max-w-6xl mx-auto space-y-16">
-                <div className="text-center space-y-4">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/50 border border-border/50 text-xs font-medium text-muted-foreground"
-                    >
-                        <Zap className="size-3 text-primary" />
-                        <span>Core Capabilities</span>
-                    </motion.div>
-                    <h2 className="text-4xl md:text-6xl font-bold tracking-tight">Powerful Content Suite</h2>
-                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                        Everything you need to dominate social media, powered by the most advanced AI video models.
-                    </p>
+
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                    <div className="space-y-3 max-w-xl">
+                        <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
+                            Everything in one place.
+                        </h2>
+                        <p className="text-muted-foreground text-lg leading-relaxed">
+                            No stitching together five tools. Discovery, generation, editing, and publishing live inside the same flow.
+                        </p>
+                    </div>
                 </div>
 
                 <motion.div
-                    variants={containerVariants}
                     initial="hidden"
                     whileInView="visible"
                     viewport={{ once: true }}
+                    variants={{
+                        hidden: { opacity: 0 },
+                        visible: { opacity: 1, transition: { staggerChildren: 0.07 } }
+                    }}
                     className="grid grid-cols-1 md:grid-cols-3 gap-4"
                 >
                     {features.map((feature, i) => {
                         const Icon = feature.icon
                         return (
-                            <motion.div key={i} variants={itemVariants} className={feature.className}>
-                                <Card className="h-full border-border/40 hover:border-primary/30 transition-all duration-300 group overflow-hidden bg-background/50 backdrop-blur-sm relative">
-                                    <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <CardHeader className="relative z-10">
-                                        <div className={`size-10 rounded-xl bg-secondary/50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${feature.iconColor}`}>
-                                            <Icon className="size-5" />
-                                        </div>
-                                        <CardTitle className="text-xl group-hover:text-primary transition-colors">{feature.title}</CardTitle>
-                                        <CardDescription className="text-base leading-relaxed mt-2 line-clamp-3">
-                                            {feature.description}
-                                        </CardDescription>
-                                    </CardHeader>
-                                </Card>
+                            <motion.div
+                                key={i}
+                                variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
+                                className={feature.large ? "md:col-span-2" : "md:col-span-1"}
+                            >
+                                <div className={`h-full rounded-lg border p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                                    feature.accent
+                                        ? "border-primary/20 bg-primary/4 hover:border-primary/35"
+                                        : "border-border bg-card hover:border-border/80"
+                                }`}>
+                                    <div className="size-10 rounded-md bg-primary/10 text-primary flex items-center justify-center mb-5">
+                                        <Icon className="size-5" />
+                                    </div>
+                                    <h3 className="text-base font-bold mb-2">{feature.title}</h3>
+                                    <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
+                                </div>
                             </motion.div>
                         )
                     })}
                 </motion.div>
+
             </div>
         </section>
     )

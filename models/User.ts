@@ -20,6 +20,9 @@ const UserSchema = new Schema(
         accounts: [{ type: Schema.Types.ObjectId, ref: "Account" }],
         sessions: [{ type: Schema.Types.ObjectId, ref: "Session" }],
 
+        // Voice cloning
+        clonedVoiceUrl: { type: String },
+
         // Settings & Preferences
         settings: {
             autoHashtags: { type: Boolean, default: true },

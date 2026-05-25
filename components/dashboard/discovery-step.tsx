@@ -9,7 +9,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { TikTokVideo } from "@/app/api/tiktok-search/route"
@@ -62,35 +61,37 @@ function ModeCard({
     title,
     description,
     cta,
-    accent,
+    accentBar,
+    iconBg,
     onClick,
 }: {
     icon: React.ElementType;
     title: string;
     description: string;
     cta: string;
-    accent: string;
+    accentBar: string;
+    iconBg: string;
     onClick: () => void;
 }) {
     return (
         <button
             onClick={onClick}
             className={cn(
-                "group relative w-full text-left rounded-3xl border border-border/50 bg-card/40 backdrop-blur-sm p-8 transition-all duration-300",
-                "hover:border-border hover:bg-card hover:shadow-2xl hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                "group relative w-full text-left rounded-lg border border-border bg-card overflow-hidden transition-all duration-200",
+                "hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             )}
         >
-            <div className={cn("absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300", accent)} />
-            <div className="relative z-10 space-y-5">
-                <div className={cn("inline-flex items-center justify-center w-14 h-14 rounded-2xl transition-transform duration-300 group-hover:scale-110", accent.replace("bg-", "bg-").replace("opacity-0", "opacity-100"))}>
+            <div className={cn("h-1 w-full transition-all duration-300 group-hover:h-1.5", accentBar)} />
+            <div className="p-8 space-y-5">
+                <div className={cn("inline-flex items-center justify-center w-14 h-14 rounded-2xl transition-transform duration-300 group-hover:scale-105", iconBg)}>
                     <Icon className="size-7" />
                 </div>
                 <div className="space-y-2">
                     <h3 className="text-xl font-bold leading-tight">{title}</h3>
                     <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
                 </div>
-                <div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-1 group-hover:translate-x-0 duration-200">
-                    {cta} <ArrowRight className="size-4" />
+                <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                    {cta} <ArrowRight className="size-4 transition-transform duration-150 group-hover:translate-x-1" />
                 </div>
             </div>
         </button>
@@ -111,8 +112,8 @@ function VideoCard({
     return (
         <div
             className={cn(
-                "group relative rounded-2xl border border-border/40 bg-card/30 overflow-hidden transition-all duration-300",
-                "hover:border-border hover:bg-card hover:shadow-xl hover:shadow-black/20",
+                "group relative rounded-lg border border-border bg-card overflow-hidden transition-all duration-200",
+                "hover:border-primary/25 hover:shadow-md",
                 isSelected && "ring-2 ring-primary border-transparent"
             )}
         >
@@ -458,7 +459,7 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                 <Sparkles className="size-3.5" />
                                 Content Intelligence
                             </div>
-                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight font-outfit bg-linear-to-b from-foreground to-foreground/50 bg-clip-text text-transparent">
+                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
                                 Where do you want to start?
                             </h1>
                             <p className="text-muted-foreground text-base max-w-md mx-auto">
@@ -472,7 +473,8 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                 title="Explore Trends"
                                 description="Search TikTok by topic, browse real viral videos, and pick one to use as content inspiration."
                                 cta="Browse trends"
-                                accent="bg-primary/5"
+                                accentBar="bg-primary"
+                                iconBg="bg-primary/10 text-primary"
                                 onClick={() => setView("trends")}
                             />
                             <ModeCard
@@ -480,7 +482,8 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                 title="Refine My Idea"
                                 description="Got a rough concept? AI will ask the right questions and turn it into a high-converting content brief."
                                 cta="Refine my idea"
-                                accent="bg-accent/5"
+                                accentBar="bg-amber-500"
+                                iconBg="bg-amber-500/10 text-amber-500"
                                 onClick={() => setView("refine")}
                             />
                         </div>
@@ -526,7 +529,7 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                                 <Input
                                     placeholder="Search TikTok (e.g. iced coffee, productivity hacks, gym motivation)"
-                                    className="h-12 pl-11 rounded-2xl border-border/40 bg-card/50 text-base focus-visible:ring-primary/20 font-medium"
+                                    className="h-11 pl-11 rounded-md border-border bg-card text-sm focus-visible:ring-primary/30 font-medium"
                                     value={trendQuery}
                                     onChange={e => setTrendQuery(e.target.value)}
                                     onKeyDown={e => e.key === "Enter" && handleTrendSearch()}
@@ -603,15 +606,31 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                             {!isSearching && !searchError && !searchDone && (
                                 <motion.div
                                     key="empty"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 0.4 }}
-                                    className="flex flex-col items-center justify-center py-20 space-y-4 text-center"
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="flex flex-col items-center justify-center py-16 space-y-5 text-center"
                                 >
-                                    <TrendingUp className="size-16 text-primary" />
-                                    <p className="text-xl font-bold">Search for any topic</p>
-                                    <p className="text-muted-foreground text-sm">
-                                        Enter a niche, product, or style — we'll find what's trending on TikTok right now.
-                                    </p>
+                                    <div className="size-16 rounded-xl bg-primary/10 flex items-center justify-center">
+                                        <TrendingUp className="size-10 text-primary" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-xl font-bold">Search for any topic</p>
+                                        <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+                                            Enter a niche, product, or style — we&apos;ll find what&apos;s trending on TikTok right now.
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap justify-center gap-2 max-w-xs">
+                                        {["iced coffee", "gym motivation", "productivity hacks", "real estate"].map(tag => (
+                                            <button
+                                                key={tag}
+                                                onClick={() => { setTrendQuery(tag); handleTrendSearch(tag) }}
+                                                className="text-xs font-semibold px-3 py-1.5 rounded-full bg-muted/50 border border-border/40 hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition-colors"
+                                            >
+                                                {tag}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -663,7 +682,7 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                         <label className="text-sm font-bold">Your rough idea</label>
                                         <p className="text-xs text-muted-foreground">The messier the better — describe it like you're texting a friend.</p>
                                     </div>
-                                    <div className="relative rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all">
+                                    <div className="relative rounded-lg border border-border bg-card focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40 transition-all">
                                         <textarea
                                             value={roughIdea}
                                             onChange={e => setRoughIdea(e.target.value)}
@@ -707,7 +726,7 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                 >
                                     {/* Analysis summary */}
                                     {(analysisTopic || analysisAudience || analysisAngle) && (
-                                        <div className="rounded-2xl border border-border/40 bg-card/30 p-5 space-y-3">
+                                        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
                                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">AI Analysis</p>
                                             <div className="space-y-2">
                                                 {analysisTopic && (
@@ -758,7 +777,7 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                                                 "px-4 py-2 rounded-xl text-sm font-semibold border transition-all duration-150",
                                                                 answers[q.id] === opt
                                                                     ? "bg-primary text-primary-foreground border-primary shadow-md"
-                                                                    : "bg-card/50 border-border/40 hover:border-primary/30 hover:bg-primary/5"
+                                                                    : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
                                                             )}
                                                         >
                                                             {answers[q.id] === opt && <Check className="inline size-3.5 mr-1.5 -mt-0.5" />}
@@ -830,7 +849,7 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
 
                                     {/* Title variations */}
                                     {refinedBrief.titleVariations?.length > 0 && (
-                                        <div className="rounded-2xl border border-border/40 bg-card/30 p-5 space-y-3">
+                                        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
                                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Title Variations</p>
                                             <div className="space-y-2">
                                                 {refinedBrief.titleVariations.map((title, i) => (
@@ -847,7 +866,7 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
 
                                     {/* Script outline */}
                                     {refinedBrief.scriptOutline?.length > 0 && (
-                                        <div className="rounded-2xl border border-border/40 bg-card/30 p-5 space-y-3">
+                                        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
                                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Script Outline</p>
                                             <div className="space-y-3">
                                                 {refinedBrief.scriptOutline.map((scene, i) => (
@@ -881,10 +900,10 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                     {/* Use brief CTA */}
                                     <Button
                                         onClick={handleUseBrief}
-                                        className="w-full h-12 rounded-2xl font-bold text-base shadow-xl shadow-primary/20"
+                                        className="w-full h-12 rounded-2xl font-bold text-base shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99] transition-all"
                                     >
-                                        <ArrowRight className="size-5 mr-2" />
-                                        Use this brief
+                                        <Sparkles className="size-4 mr-2" />
+                                        Use this brief — set up my video
                                     </Button>
 
                                     {refinedBrief.suggestedSearch && (
