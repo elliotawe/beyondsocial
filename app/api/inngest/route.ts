@@ -6,3 +6,6 @@ export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [generatePremiumVideo],
 });
+
+// Allow Vercel to keep this route alive long enough for the Inngest sync handshake.
+export const maxDuration = 60;
