@@ -2,7 +2,8 @@ import { Inngest } from "inngest";
 
 export const inngest = new Inngest({
   id: "beyond-social",
-  // INNGEST_SIGNING_KEY is the only key needed in production.
-  // Event keys no longer exist — the signing key covers both serve auth and event sending.
+  // In production these are read automatically from INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY.
+  // Explicit passthrough makes it obvious and avoids silent misconfiguration.
+  eventKey: process.env.INNGEST_EVENT_KEY,
   signingKey: process.env.INNGEST_SIGNING_KEY,
 });
