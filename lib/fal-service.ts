@@ -3,8 +3,11 @@ import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import OpenAI from "openai";
 
-// Support both FAL_API_KEY and FAL_KEY (fal.ai's own convention)
-fal.config({ credentials: process.env.FAL_API_KEY ?? process.env.FAL_KEY ?? "" });
+function configureFal() {
+  const key = process.env.FAL_API_KEY ?? process.env.FAL_KEY;
+  if (!key) throw new Error("FAL_API_KEY is not configured");
+  fal.config({ credentials: key });
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +81,7 @@ export async function generateAndUploadAudio(script: string, voice: string): Pro
   const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
   const audioFile = new File([audioBlob], "voiceover.mp3", { type: "audio/mpeg" });
 
+  configureFal();
   // fal.storage.upload returns the CDN URL of the uploaded file
   const uploadedUrl = await fal.storage.upload(audioFile);
   console.log(`[fal-service] TTS: audio uploaded to fal storage → ${uploadedUrl}`);
@@ -93,6 +97,7 @@ export async function generateAudioWithClonedVoice(
   referenceAudioUrl: string,
   script: string
 ): Promise<string> {
+  configureFal();
   console.log(`[fal-service] generateAudioWithClonedVoice: submitting to zonos`, {
     referenceAudioUrl,
     scriptLength: script?.length,
@@ -119,6 +124,7 @@ export async function generateAvatarClip(params: {
   audioUrl: string;
   durationSeconds: number;
 }): Promise<{ requestId: string }> {
+  configureFal();
   const model = process.env.CREATIFY_AURORA_MODEL ?? "fal-ai/creatify/aurora";
   console.log(`[fal-service] generateAvatarClip: model=${model}`, {
     portraitUrl: params.portraitUrl,
@@ -166,6 +172,7 @@ export async function generateBrollClip(params: {
   durationSeconds: number;
   aspectRatio: "9:16";
 }): Promise<{ requestId: string }> {
+  configureFal();
   const model =
     process.env.KLING_MODEL ??
     "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
@@ -209,6 +216,7 @@ export async function getFalJobStatus(
   requestId: string
 ): Promise<FalStatusResult> {
   try {
+    configureFal();
     const statusResult = await fal.queue.status(endpointId, {
       requestId,
       logs: false,

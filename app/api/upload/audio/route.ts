@@ -4,8 +4,6 @@ import { auth } from "@/auth";
 import connectDB from "@/lib/db";
 import { User } from "@/models/User";
 
-fal.config({ credentials: process.env.FAL_API_KEY ?? process.env.FAL_KEY ?? "" });
-
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
 
 export async function POST(req: NextRequest) {
@@ -14,6 +12,13 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const falKey = process.env.FAL_API_KEY ?? process.env.FAL_KEY;
+    if (!falKey) {
+      console.error("[upload/audio] FAL_API_KEY is not configured");
+      return NextResponse.json({ error: "Voice upload service not configured" }, { status: 500 });
+    }
+    fal.config({ credentials: falKey });
 
     const formData = await req.formData();
     const file = formData.get("audio") as File | null;
