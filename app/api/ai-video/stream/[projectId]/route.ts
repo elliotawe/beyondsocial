@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+
+export const maxDuration = 300; // 5 minutes — Vercel Pro max, reduces reconnection frequency
 import { fal } from "@fal-ai/client";
 import connectDB from "@/lib/db";
 import { Project } from "@/models/Project";

@@ -526,12 +526,12 @@ export function VideoCreator() {
         });
 
         es.addEventListener("error", (e) => {
+            const data = (e as MessageEvent).data;
+            if (!data) return; // connection drop — browser auto-reconnects, keep waiting
             es.close();
             setIsGenerating(false);
             try {
-                const msg = (e as MessageEvent).data
-                    ? (JSON.parse((e as MessageEvent).data) as { message?: string })?.message
-                    : null;
+                const msg = (JSON.parse(data) as { message?: string })?.message;
                 setError(msg || "Connection lost. Please refresh and check your projects.");
             } catch {
                 setError("Connection lost. Please refresh and check your projects.");
