@@ -216,6 +216,7 @@ export async function GET(
             videoUrl?: string;
             generatedVideoUrl?: string;
             script?: unknown;
+            error?: string;
           } | null;
 
           if (!project) {
@@ -253,6 +254,7 @@ export async function GET(
 
           push("progress", {
             status: project.status,
+            error: project.error ?? null,
             videoUrl: project.videoUrl ?? project.generatedVideoUrl ?? null,
             script: project.script ?? null,
             progress: { totalClips, completedClips, currentStage, clips: liveClips },

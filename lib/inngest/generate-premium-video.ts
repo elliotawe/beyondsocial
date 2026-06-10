@@ -50,6 +50,14 @@ interface ResolvedClip {
   durationSeconds: number;
 }
 
+function friendlyError(msg: string): string {
+  if (/forbidden/i.test(msg)) return "Video generation service is temporarily unavailable. Please try again shortly.";
+  if (/timed?\s*out/i.test(msg)) return "Generation took too long and was cancelled. Please try again.";
+  if (/not configured/i.test(msg)) return "A configuration error occurred on our end. Please try again or contact support.";
+  if (/credits/i.test(msg)) return "You don't have enough credits to generate this video.";
+  return "Video generation failed unexpectedly. Please try again.";
+}
+
 export const generatePremiumVideo = inngest.createFunction(
   {
     id: "generate-premium-video",
@@ -73,6 +81,8 @@ export const generatePremiumVideo = inngest.createFunction(
       voice,
       clonedVoiceUrl,
     } = event.data as GenerateRequestedData;
+
+    try {
 
     await connectDB();
 
@@ -583,6 +593,20 @@ export const generatePremiumVideo = inngest.createFunction(
         });
         await Job.findByIdAndUpdate(jobId, { status: "completed" });
       });
+    }
+
+    } catch (topLevelErr) {
+      const raw = topLevelErr instanceof Error ? topLevelErr.message : String(topLevelErr);
+      const userMsg = friendlyError(raw);
+      console.error(`[Inngest][${projectId}] ✗ unhandled top-level error:`, raw);
+      try {
+        await connectDB();
+        await Project.findByIdAndUpdate(projectId, { status: "failed", error: userMsg });
+        await refundCredits(userId, "video_generation", projectId);
+      } catch (cleanupErr) {
+        console.error(`[Inngest][${projectId}] ✗ cleanup after failure also threw:`, cleanupErr);
+      }
+      throw topLevelErr;
     }
   }
 );

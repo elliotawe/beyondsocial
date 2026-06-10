@@ -516,7 +516,8 @@ export function VideoCreator() {
                     if (result.script) fetchCaptionsAndHashtags(result.script);
                 } else if (result.status === "failed") {
                     es.close();
-                    setError("Something went wrong generating your video. Your 3 credits have been refunded automatically.");
+                    const reason = (result as { error?: string }).error ?? "Something went wrong generating your video.";
+                    setError(`${reason} Your credits have been refunded.`);
                     setIsGenerating(false);
                 }
             } catch {
