@@ -124,13 +124,27 @@ Return ONLY a JSON array:
     }));
   }
 
-  const brollPlan: BrollPlanItem[] = assignments.map((a, idx) => ({
+  const MAX_BROLL_CLIPS = 3;
+
+  let brollPlan: BrollPlanItem[] = assignments.map((a, idx) => ({
     imageUrl: images[a.imageIndex] ?? images[0],
     sceneRole: a.sceneRole,
     klingPrompt: a.klingPrompt,
     durationSeconds: a.durationSeconds,
     order: a.order ?? idx,
   }));
+
+  // Cap clips to MAX_BROLL_CLIPS — merge excess clip durations into the last kept clip
+  if (brollPlan.length > MAX_BROLL_CLIPS) {
+    const kept = brollPlan.slice(0, MAX_BROLL_CLIPS);
+    const overflow = brollPlan.slice(MAX_BROLL_CLIPS);
+    const extraSeconds = overflow.reduce((sum, c) => sum + c.durationSeconds, 0);
+    kept[kept.length - 1] = {
+      ...kept[kept.length - 1],
+      durationSeconds: kept[kept.length - 1].durationSeconds + extraSeconds,
+    };
+    brollPlan = kept;
+  }
 
   return {
     portraitImageUrl: resolvedPortraitUrl,
