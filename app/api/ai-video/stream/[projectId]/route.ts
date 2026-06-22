@@ -229,6 +229,7 @@ export async function GET(
           const job = await Job.findOne({ projectId }).lean() as {
             totalClips?: number;
             completedClips?: number;
+            completedClipUrls?: string[];
             avatarRequestId?: string;
             brollRequestIds?: string[];
           } | null;
@@ -259,7 +260,13 @@ export async function GET(
             error: project.error ?? null,
             videoUrl: project.videoUrl ?? project.generatedVideoUrl ?? null,
             script: project.script ?? null,
-            progress: { totalClips, completedClips, currentStage, clips: liveClips },
+            progress: {
+              totalClips,
+              completedClips,
+              currentStage,
+              clips: liveClips,
+              completedClipUrls: job?.completedClipUrls ?? [],
+            },
           });
 
           if (project.status === "completed" || project.status === "failed") {

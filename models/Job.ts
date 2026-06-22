@@ -31,6 +31,7 @@ const JobSchema = new Schema(
         }],
         totalClips: { type: Number, default: 0 },
         completedClips: { type: Number, default: 0 },
+        completedClipUrls: [String],         // Cloudinary URLs as each clip finishes (for partial preview)
         renderId: String,                    // Shotstack render ID
     },
     { timestamps: true }

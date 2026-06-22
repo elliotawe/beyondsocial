@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,9 @@ import {
     Share2,
     ExternalLink,
     Zap,
-    Loader2
+    Loader2,
+    Check,
+    X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProjectScheduler } from "@/components/dashboard/project-scheduler";
@@ -24,10 +26,20 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { IProject } from "@/lib/types";
 
+interface LiveProgress {
+    totalClips: number;
+    completedClips: number;
+    currentStage: string;
+    clips: { type: "avatar" | "broll"; label: string; status: string; queuePosition?: number }[];
+    completedClipUrls: string[];
+}
+
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const [project, setProject] = useState<IProject | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [liveProgress, setLiveProgress] = useState<LiveProgress | null>(null);
+    const sseRef = useRef<EventSource | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -43,6 +55,46 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 }
                 const data = await res.json();
                 setProject(data.project);
+
+                // If the project is in-progress when the user lands, open the SSE stream
+                // immediately so they see live status without needing the creator page.
+                if (data.project?.status === "processing" || data.project?.status === "queued") {
+                    const es = new EventSource(`/api/ai-video/stream/${id}`);
+                    sseRef.current = es;
+
+                    es.addEventListener("progress", (e) => {
+                        try {
+                            const result = JSON.parse((e as MessageEvent).data);
+                            if (result.progress) {
+                                setLiveProgress({
+                                    totalClips: result.progress.totalClips ?? 0,
+                                    completedClips: result.progress.completedClips ?? 0,
+                                    currentStage: result.progress.currentStage ?? "Processing…",
+                                    clips: result.progress.clips ?? [],
+                                    completedClipUrls: result.progress.completedClipUrls ?? [],
+                                });
+                            }
+                            if (result.status === "completed" && result.videoUrl) {
+                                es.close();
+                                setProject(prev => prev ? { ...prev, status: "completed", videoUrl: result.videoUrl } : prev);
+                                setLiveProgress(null);
+                                toast.success("Your video is ready!");
+                            } else if (result.status === "failed") {
+                                es.close();
+                                setProject(prev => prev ? { ...prev, status: "failed" } : prev);
+                                setLiveProgress(null);
+                                toast.error(result.error ?? "Video generation failed.");
+                            }
+                        } catch { /* malformed event */ }
+                    });
+
+                    es.addEventListener("error", (e) => {
+                        const data = (e as MessageEvent).data;
+                        if (!data) return; // connection drop — browser auto-reconnects
+                        es.close();
+                        setLiveProgress(null);
+                    });
+                }
             } catch (err) {
                 console.error(err);
                 toast.error("Failed to load project details");
@@ -51,6 +103,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             }
         }
         fetchProject();
+
+        return () => {
+            sseRef.current?.close();
+        };
     }, [id, router]);
 
     if (isLoading) {
@@ -123,6 +179,70 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     )}
                 </div>
             </div>
+
+            {/* Live generation progress banner — shown when the user returns to an in-progress project */}
+            {liveProgress && (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-4" role="status" aria-live="polite">
+                    <div className="flex items-center gap-3">
+                        <Loader2 className="size-4 text-primary animate-spin" aria-hidden="true" />
+                        <p className="text-sm font-semibold text-foreground">{liveProgress.currentStage}</p>
+                    </div>
+
+                    {liveProgress.totalClips > 0 && (
+                        <div className="space-y-1.5">
+                            <div className="h-1.5 w-full bg-border/30 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-primary rounded-full transition-all duration-700"
+                                    style={{ width: `${Math.round((liveProgress.completedClips / liveProgress.totalClips) * 100)}%` }}
+                                />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground/50 font-medium">
+                                {liveProgress.completedClips} of {liveProgress.totalClips} clips done
+                            </p>
+                        </div>
+                    )}
+
+                    {liveProgress.clips.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                            {liveProgress.clips.map((clip, i) => {
+                                const isDone = clip.status === "COMPLETED";
+                                const isRendering = clip.status === "IN_PROGRESS";
+                                const isQueued = clip.status === "IN_QUEUE";
+                                const isFailed = clip.status === "FAILED";
+                                return (
+                                    <div key={i} className={cn(
+                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border",
+                                        isDone && "bg-green-500/10 border-green-500/20 text-green-400",
+                                        isRendering && "bg-primary/10 border-primary/20 text-primary",
+                                        isQueued && "bg-muted/40 border-border/30 text-muted-foreground/50",
+                                        isFailed && "bg-destructive/10 border-destructive/20 text-destructive/70",
+                                        !isDone && !isRendering && !isQueued && !isFailed && "bg-muted/40 border-border/30 text-muted-foreground/40",
+                                    )}>
+                                        {isDone && <Check className="size-2.5" />}
+                                        {isRendering && <Loader2 className="size-2.5 animate-spin" />}
+                                        {isQueued && <span className="size-2 rounded-full bg-muted-foreground/30 inline-block" />}
+                                        {isFailed && <X className="size-2.5" />}
+                                        <span>{clip.label}{isQueued && clip.queuePosition ? ` · #${clip.queuePosition}` : isRendering ? " · rendering" : isDone ? " · done" : isFailed ? " · failed" : ""}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {liveProgress.completedClipUrls.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Clips ready — composing final video</p>
+                            <div className="flex gap-2 flex-wrap">
+                                {liveProgress.completedClipUrls.map((url, i) => (
+                                    <div key={i} className="relative w-14 aspect-9/16 rounded-lg overflow-hidden bg-black border border-border/30">
+                                        <video src={url} muted loop autoPlay playsInline className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Main Creative Studio Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">

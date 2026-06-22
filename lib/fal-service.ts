@@ -209,6 +209,65 @@ export async function generateBrollClip(params: {
   }
 }
 
+// ─── Dev-mode synchronous subscribe (no webhook needed) ──────────────────────
+// Used when NEXTAUTH_URL is localhost — fal webhooks can't reach localhost.
+
+export async function subscribeAvatarClip(params: {
+  portraitUrl: string;
+  audioUrl: string;
+}): Promise<string> {
+  configureFal();
+  const model = process.env.CREATIFY_AURORA_MODEL ?? "fal-ai/creatify/aurora";
+  console.log(`[fal-service] subscribeAvatarClip (dev/sync): model=${model}`);
+  const result = await fal.subscribe(model, {
+    input: { image_url: params.portraitUrl, audio_url: params.audioUrl, resolution: "720p" },
+  });
+  const data = result.data as { video?: { url?: string }; video_url?: string };
+  const url = data?.video?.url ?? data?.video_url ?? "";
+  if (!url) throw new Error("fal.subscribe avatar returned no video URL");
+  return url;
+}
+
+export async function subscribeBrollClip(params: {
+  imageUrl: string;
+  prompt: string;
+  durationSeconds: number;
+}): Promise<string> {
+  configureFal();
+  const model = process.env.KLING_MODEL ?? "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
+  const duration: "5" | "10" = params.durationSeconds > 7 ? "10" : "5";
+  console.log(`[fal-service] subscribeBrollClip (dev/sync): model=${model}, duration=${duration}`);
+  const result = await fal.subscribe(model, {
+    input: { image_url: params.imageUrl, prompt: params.prompt, duration },
+  });
+  const data = result.data as { video?: { url?: string }; video_url?: string };
+  const url = data?.video?.url ?? data?.video_url ?? "";
+  if (!url) throw new Error("fal.subscribe broll returned no video URL");
+  return url;
+}
+
+// ─── Fallback poll — one attempt per call (use in a step.sleep loop) ─────────
+// Returns: the video URL if done, "FAILED" if failed, null if still in progress.
+
+export async function pollFalJobOnce(
+  model: string,
+  requestId: string
+): Promise<string | "FAILED" | null> {
+  configureFal();
+  try {
+    const status = await fal.queue.status(model, { requestId, logs: false });
+    if (status.status === "COMPLETED") {
+      const result = await fal.queue.result(model, { requestId });
+      const data = result.data as { video?: { url?: string }; video_url?: string };
+      return data?.video?.url ?? data?.video_url ?? "FAILED";
+    }
+    if ((status.status as string) === "FAILED") return "FAILED";
+    return null;
+  } catch {
+    return "FAILED";
+  }
+}
+
 // ─── Status check ─────────────────────────────────────────────────────────────
 
 export async function getFalJobStatus(
