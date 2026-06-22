@@ -34,7 +34,7 @@ const ProjectSchema = new Schema(
         videoUrl: String,                    // final composed video URL (Shotstack output)
         cloudinaryUrl: String,
         cloudinaryPublicId: String,
-        taskId: String,                      // legacy Wan AI Task ID (kept for existing records)
+        taskId: String,                      // legacy field — kept for existing records
 
         // Premium pipeline assets
         videoType: { type: String, enum: ["person", "product", "property"], default: "person" },

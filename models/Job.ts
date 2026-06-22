@@ -16,7 +16,7 @@ const JobSchema = new Schema(
         payload: { type: Schema.Types.Mixed },
         result: { type: Schema.Types.Mixed },
         error: String,
-        providerTaskId: String,              // legacy Wan AI Task ID
+        providerTaskId: String,              // legacy field
         projectId: { type: Schema.Types.ObjectId, ref: "Project" },
 
         // Premium pipeline fields

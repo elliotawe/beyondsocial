@@ -17,7 +17,6 @@ All variables below must be set in `.env.local` (and in your production environm
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
-| `DASHSCOPE_API_KEY` | DashScope (Wan AI) key — kept for legacy; no longer used in the active video pipeline |
 | `APIFY_API_TOKEN` | Apify token for web scraping (optional, non-critical path) |
 
 ---
@@ -75,10 +74,7 @@ CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
 
-# Legacy (kept for existing records)
-DASHSCOPE_API_KEY=...
-
-# New — fal.ai
+# fal.ai
 FAL_API_KEY=...
 CREATIFY_AURORA_MODEL=fal-ai/creatify/aurora
 KLING_MODEL=fal-ai/kling-video/v2.5-turbo/pro/image-to-video
