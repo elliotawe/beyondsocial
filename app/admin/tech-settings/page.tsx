@@ -42,7 +42,7 @@ export default function TechSettings() {
                     <CardContent className="space-y-6">
                         {[
                             { name: "OpenAI GPT-4o Hub", key: "sk-proj-....A7B2", status: "Active" },
-                            { name: "Wan AI 2.6 Engine", key: "wan-k-....9D4F", status: "Active" },
+                            { name: "fal.ai (Aurora + Kling 2.5)", key: "fal-k-....9D4F", status: "Active" },
                             { name: "AWS S3 Backup Bucket", key: "AKIA....L2P9", status: "Active" },
                             { name: "Google Cloud Video Intelligence", key: "gcp-id-....3E11", status: "Inactive", color: "text-amber-500" },
                         ].map((provider, i) => (
@@ -134,7 +134,7 @@ export default function TechSettings() {
                             { time: "08:14:22.401", level: "INFO", source: "worker-prod-04", msg: "Video generation job #9412 completed successfully." },
                             { time: "08:12:45.192", level: "WARN", source: "auth-gateway", msg: "Rate limit threshold reached for IP 45.2.1.94" },
                             { time: "08:10:11.002", level: "INFO", source: "database", msg: "Scheduled vacuum complete on 'generations' table." },
-                            { time: "08:05:33.881", level: "ERROR", source: "wan-ai-connector", msg: "Connection timeout while requesting shard inference." },
+                            { time: "08:05:33.881", level: "ERROR", source: "fal-ai-connector", msg: "Connection timeout while requesting shard inference." },
                         ].map((log, i) => (
                             <div key={i} className="flex gap-4 p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800/50 group">
                                 <span className="text-zinc-400 shrink-0">{log.time}</span>

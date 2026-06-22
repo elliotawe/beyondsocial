@@ -114,8 +114,6 @@ export async function refineVideoIdea(
     }
 }
 
-// Wan 2.6 Flash removed — video generation now handled by the Inngest orchestrator
-// in lib/inngest/generate-premium-video.ts using Creatify Aurora + Kling 2.5 via fal.ai
 
 /**
  * Generates per-image Kling 2.5 Turbo Pro prompts for a set of images and a script.

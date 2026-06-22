@@ -272,7 +272,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                                 </div>
                                                 <div className="space-y-2">
                                                     <p className="text-white font-bold text-lg">Generating Content</p>
-                                                    <p className="text-sm opacity-60">Wan 2.6 Flash Engine is rendering your video...</p>
+                                                    <p className="text-sm opacity-60">Aurora · Kling 2.5 · Shotstack is rendering your video...</p>
                                                 </div>
                                                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                                                     <div className="h-full bg-primary w-2/3 animate-[shimmer_2s_infinite]" />
@@ -298,7 +298,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             </div>
                             <div className="p-4 rounded-[28px] bg-card/40 border border-border/40 backdrop-blur-sm text-center space-y-1">
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Engine</p>
-                                <p className="font-bold ">Wan 2.6 Flash</p>
+                                <p className="font-bold ">Aurora + Kling 2.5</p>
                             </div>
                         </div>
                     </div>

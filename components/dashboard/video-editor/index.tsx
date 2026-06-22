@@ -153,7 +153,7 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                     <div className="h-4 w-px bg-border/40" />
                     <h2 className="font-bold text-sm tracking-tight">AI Content Designer</h2>
                     <Badge variant="outline" className="hidden sm:flex bg-primary/5 text-primary border-primary/20 text-[10px] font-bold">
-                        Wan AI 2.6 · 4K
+                        Aurora · Kling 2.5 · 4K
                     </Badge>
                 </div>
                 <Button
