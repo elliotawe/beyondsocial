@@ -181,12 +181,13 @@ export async function composeVideo(
   const body = buildTimeline(params);
   const { baseUrl, headers } = shotstackHeaders();
 
-  const shotstackBaseUrl = process.env.NEXTAUTH_URL;
-  if (!shotstackBaseUrl) throw new Error("NEXTAUTH_URL is not set — cannot register Shotstack webhook callback");
+  const shotstackBaseUrl = process.env.NEXTAUTH_URL ?? "";
+  const isDev = shotstackBaseUrl.includes("localhost");
   const webhookSecret = process.env.WEBHOOK_SECRET ? `?secret=${process.env.WEBHOOK_SECRET}` : "";
-  const webhookUrl = `${shotstackBaseUrl}/api/webhooks/shotstack${webhookSecret}`;
+  const callbackUrl = isDev ? undefined : `${shotstackBaseUrl}/api/webhooks/shotstack${webhookSecret}`;
+  if (!isDev && !shotstackBaseUrl) throw new Error("NEXTAUTH_URL is not set — cannot register Shotstack webhook callback");
 
-  const payload = { ...body, callback: webhookUrl };
+  const payload = callbackUrl ? { ...body, callback: callbackUrl } : body;
 
   const res = await fetch(`${baseUrl}/render`, {
     method: "POST",
@@ -281,17 +282,18 @@ export async function composeVideoNoAvatar(
   };
 
   const { baseUrl, headers } = shotstackHeaders();
-  const noAvatarBaseUrl = process.env.NEXTAUTH_URL;
-  if (!noAvatarBaseUrl) throw new Error("NEXTAUTH_URL is not set — cannot register Shotstack webhook callback");
+  const noAvatarBaseUrl = process.env.NEXTAUTH_URL ?? "";
+  const isDevNoAvatar = noAvatarBaseUrl.includes("localhost");
   const webhookSecret = process.env.WEBHOOK_SECRET ? `?secret=${process.env.WEBHOOK_SECRET}` : "";
-  const webhookUrl = `${noAvatarBaseUrl}/api/webhooks/shotstack${webhookSecret}`;
+  const noAvatarCallbackUrl = isDevNoAvatar ? undefined : `${noAvatarBaseUrl}/api/webhooks/shotstack${webhookSecret}`;
+  if (!isDevNoAvatar && !noAvatarBaseUrl) throw new Error("NEXTAUTH_URL is not set — cannot register Shotstack webhook callback");
 
-  const payload = { ...body, callback: webhookUrl };
+  const payload = noAvatarCallbackUrl ? { ...body, callback: noAvatarCallbackUrl } : body;
 
   console.log(`[Shotstack] composeVideoNoAvatar: submitting render`, {
     brollCount: params.brollClips.length,
     totalDuration,
-    webhookUrl,
+    callbackUrl: noAvatarCallbackUrl ?? "(none — dev mode)",
   });
 
   const res = await fetch(`${baseUrl}/render`, {

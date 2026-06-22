@@ -231,7 +231,8 @@ export function VideoCreator() {
     const [renderProgress, setRenderProgress] = useState<{
         totalClips: number; completedClips: number; currentStage: string;
         clips?: { type: "avatar" | "broll"; label: string; status: string; queuePosition?: number }[];
-    }>({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…" });
+        completedClipUrls?: string[];
+    }>({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", completedClipUrls: [] });
 
     // Check if the user has a cloned voice saved
     useEffect(() => {
@@ -506,6 +507,7 @@ export function VideoCreator() {
                         completedClips: result.progress.completedClips ?? 0,
                         currentStage: result.progress.currentStage ?? "Processing…",
                         clips: result.progress.clips ?? [],
+                        completedClipUrls: result.progress.completedClipUrls ?? [],
                     });
                 }
                 if (result.status === "completed" && result.videoUrl) {
@@ -516,7 +518,8 @@ export function VideoCreator() {
                     if (result.script) fetchCaptionsAndHashtags(result.script);
                 } else if (result.status === "failed") {
                     es.close();
-                    setError("Something went wrong generating your video. Your 3 credits have been refunded automatically.");
+                    const reason = (result as { error?: string }).error ?? "Something went wrong generating your video.";
+                    setError(`${reason} Your credits have been refunded.`);
                     setIsGenerating(false);
                 }
             } catch {
@@ -525,12 +528,12 @@ export function VideoCreator() {
         });
 
         es.addEventListener("error", (e) => {
+            const data = (e as MessageEvent).data;
+            if (!data) return; // connection drop — browser auto-reconnects, keep waiting
             es.close();
             setIsGenerating(false);
             try {
-                const msg = (e as MessageEvent).data
-                    ? (JSON.parse((e as MessageEvent).data) as { message?: string })?.message
-                    : null;
+                const msg = (JSON.parse(data) as { message?: string })?.message;
                 setError(msg || "Connection lost. Please refresh and check your projects.");
             } catch {
                 setError("Connection lost. Please refresh and check your projects.");
@@ -544,7 +547,7 @@ export function VideoCreator() {
         setProjectId(null); setSelectedIndustry(null); setAutoCaptions([]);
         setRecommendedHashtags([]); setError(null); setVideoType(null);
         setPortraitImageUrl(null);
-        setRenderProgress({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", clips: [] });
+        setRenderProgress({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", clips: [], completedClipUrls: [] });
     };
 
     // ─── Render ───────────────────────────────────────────────────────────────
@@ -1104,6 +1107,30 @@ export function VideoCreator() {
                                                 </div>
                                             );
                                         })}
+                                    </div>
+                                )}
+
+                                {/* Partial clip preview — shown as soon as individual clips finish */}
+                                {(renderProgress.completedClipUrls?.length ?? 0) > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                                            Clips ready — final composition in progress
+                                        </p>
+                                        <div className="flex gap-2 flex-wrap">
+                                            {renderProgress.completedClipUrls!.map((url, i) => (
+                                                <div key={i} className="relative w-16 aspect-9/16 rounded-lg overflow-hidden bg-black border border-border/30">
+                                                    <video
+                                                        src={url}
+                                                        muted
+                                                        loop
+                                                        autoPlay
+                                                        playsInline
+                                                        className="w-full h-full object-cover"
+                                                        aria-label={`Clip ${i + 1} preview`}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 

@@ -150,6 +150,7 @@ export async function GET(
       generatedVideoUrl?: string;
       videoUrl?: string;
       script?: unknown;
+      error?: string;
     } | null;
 
     if (!project) {
@@ -190,6 +191,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       status: project.status,
+      error: project.error ?? null,
       videoUrl: project.videoUrl ?? project.generatedVideoUrl ?? null,
       script: project.script ?? null,
       progress: {
