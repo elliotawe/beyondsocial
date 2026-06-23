@@ -258,8 +258,9 @@ export async function pollFalJobOnce(
     const status = await fal.queue.status(model, { requestId, logs: false });
     if (status.status === "COMPLETED") {
       const result = await fal.queue.result(model, { requestId });
-      const data = result.data as { video?: { url?: string }; video_url?: string };
-      return data?.video?.url ?? data?.video_url ?? "FAILED";
+      // result.data is the SDK polling shape — different from the webhook body.payload shape
+      const data = result.data as { video?: { url?: string } };
+      return data?.video?.url ?? "FAILED";
     }
     if ((status.status as string) === "FAILED") return "FAILED";
     return null;
@@ -283,11 +284,9 @@ export async function getFalJobStatus(
 
     if (statusResult.status === "COMPLETED") {
       const result = await fal.queue.result(endpointId, { requestId });
-      const output = result.data as {
-        video?: { url?: string };
-        video_url?: string;
-      };
-      const videoUrl = output?.video?.url ?? output?.video_url;
+      // result.data is the SDK polling shape — not the webhook body.payload shape
+      const output = result.data as { video?: { url?: string } };
+      const videoUrl = output?.video?.url;
       return { status: "COMPLETED", videoUrl };
     }
 
