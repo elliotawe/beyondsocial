@@ -352,27 +352,35 @@ export const generatePremiumVideo = inngest.createFunction(
         }
 
         // STEP 5: Upload each clip to Cloudinary in parallel.
-        // Each upload also pushes to Job.completedClipUrls for partial preview.
-        const resolvedClips: ResolvedClip[] = await Promise.all(
+        // FIX 8: wrap each upload in try/catch so a transient Cloudinary failure on one
+        // clip doesn't throw and permanently strand the whole run (retries:0 = no recovery).
+        // Failures return null and are filtered out; the avatar guard below catches the
+        // critical case where the avatar itself failed to upload.
+        const resolvedClipsRaw: (ResolvedClip | null)[] = await Promise.all(
           rawClips.map(clip =>
             step.run(`cloudinary-upload-${clip.type}-${clip.order}`, async () => {
               await connectDB();
               console.log(`[Inngest][${projectId}] Uploading ${clip.type} order=${clip.order} to Cloudinary`);
-              const uploaded = await cloudinaryService.uploadVideo(clip.rawUrl, {
-                folder: "beyond-social/clips",
-                tags: [clip.type, "ai-generated"],
-              });
-              const url = uploaded.secure_url;
-              console.log(`[Inngest][${projectId}] Cloudinary ✓ ${clip.type} order=${clip.order} → ${url}`);
-              // Push to completedClipUrls for partial preview; increment counter by 1.
-              await Job.findByIdAndUpdate(jobId, {
-                $push: { completedClipUrls: url },
-                $inc: { completedClips: 1 },
-              });
-              return { cloudinaryUrl: url, type: clip.type, order: clip.order, durationSeconds: clip.durationSeconds } as ResolvedClip;
+              try {
+                const uploaded = await cloudinaryService.uploadVideo(clip.rawUrl, {
+                  folder: "beyond-social/clips",
+                  tags: [clip.type, "ai-generated"],
+                });
+                const url = uploaded.secure_url;
+                console.log(`[Inngest][${projectId}] Cloudinary ✓ ${clip.type} order=${clip.order} → ${url}`);
+                await Job.findByIdAndUpdate(jobId, {
+                  $push: { completedClipUrls: url },
+                  $inc: { completedClips: 1 },
+                });
+                return { cloudinaryUrl: url, type: clip.type, order: clip.order, durationSeconds: clip.durationSeconds } as ResolvedClip;
+              } catch (uploadErr) {
+                console.error(`[Inngest][${projectId}] Cloudinary upload failed for ${clip.type} order=${clip.order}:`, uploadErr);
+                return null;
+              }
             })
           )
         );
+        const resolvedClips = resolvedClipsRaw.filter((c): c is ResolvedClip => c !== null);
 
         const avatarClip = resolvedClips.find(c => c.type === "avatar")!;
         const brollClips = resolvedClips.filter(c => c.type === "broll").sort((a, b) => a.order - b.order);
@@ -398,9 +406,12 @@ export const generatePremiumVideo = inngest.createFunction(
         let shotstackVideoUrl: string | null = null;
 
         if (!dev) {
+          // FIX 4: match on renderId (globally unique per render), not projectId.
+          // projectId-only match would be satisfied by a stale done event from a
+          // prior render of the same project, delivering the wrong video URL.
           const shotstackDone = await step.waitForEvent("shotstack-done", {
             event: "video/shotstack.completed",
-            match: "data.projectId",
+            if: `async.data.renderId == "${composition.renderId}"`,
             timeout: "10m",
           });
 
@@ -438,29 +449,50 @@ export const generatePremiumVideo = inngest.createFunction(
         }
 
         // STEP 8: Upload final composed video to Cloudinary (not just Shotstack CDN).
+        // FIX 8: try/catch — if Cloudinary fails here (after the Shotstack wait has resolved),
+        // with retries:0 there is no recovery. Fall back to the raw Shotstack URL so the video
+        // is still accessible (for up to 24h per Shotstack's stage policy) rather than losing it.
         const finalVideoUrl = await step.run("upload-final-to-cloudinary", async () => {
           console.log(`[Inngest][${projectId}] Step 8: uploading final video to Cloudinary`);
-          const uploaded = await cloudinaryService.uploadVideo(shotstackVideoUrl!, {
-            folder: `beyond-social/projects/${projectId}`,
-            tags: ["final", "composed", videoType],
-          });
-          console.log(`[Inngest][${projectId}] Step 8 ✓ finalUrl=${uploaded.secure_url}`);
-          return uploaded.secure_url;
+          try {
+            const uploaded = await cloudinaryService.uploadVideo(shotstackVideoUrl!, {
+              folder: `beyond-social/projects/${projectId}`,
+              tags: ["final", "composed", videoType],
+              large: true, // FIX 6: use upload_large() — composed MP4s can exceed 100 MB
+            });
+            console.log(`[Inngest][${projectId}] Step 8 ✓ finalUrl=${uploaded.secure_url}`);
+            return uploaded.secure_url;
+          } catch (cloudErr) {
+            console.error(`[Inngest][${projectId}] Step 8 ✗ Cloudinary upload failed — falling back to Shotstack URL:`, cloudErr);
+            return shotstackVideoUrl!; // temporary URL (expires in 24h on stage)
+          }
         });
 
         // STEP 9: Persist result
+        // FIX 8: retry the DB writes up to 3 times — a transient Mongo blip after the wait
+        // would otherwise permanently strand the run in "processing" with retries:0.
         await step.run("persist-result", async () => {
           await connectDB();
           console.log(`[Inngest][${projectId}] Step 9 ✓ persisting final video`);
-          await Project.findByIdAndUpdate(projectId, {
-            status: "completed",
-            generatedVideoUrl: finalVideoUrl,
-            videoUrl: finalVideoUrl,
-            avatarClipUrl: avatarClip.cloudinaryUrl,
-            brollClipUrls: brollClips.map(c => c.cloudinaryUrl),
-            generationEngine: "creatify-aurora+kling-2.5+shotstack",
-          });
-          await Job.findByIdAndUpdate(jobId, { status: "completed" });
+          let lastErr: unknown;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await Project.findByIdAndUpdate(projectId, {
+                status: "completed",
+                generatedVideoUrl: finalVideoUrl,
+                videoUrl: finalVideoUrl,
+                avatarClipUrl: avatarClip.cloudinaryUrl,
+                brollClipUrls: brollClips.map(c => c.cloudinaryUrl),
+                generationEngine: "creatify-aurora+kling-2.5+shotstack",
+              });
+              await Job.findByIdAndUpdate(jobId, { status: "completed" });
+              return;
+            } catch (dbErr) {
+              lastErr = dbErr;
+              console.warn(`[Inngest][${projectId}] persist-result attempt ${attempt + 1} failed:`, dbErr);
+            }
+          }
+          throw lastErr; // exhausted retries — surface to Inngest for visibility
         });
 
       } else {
@@ -564,24 +596,33 @@ export const generatePremiumVideo = inngest.createFunction(
         }
 
         // Upload all product clips to Cloudinary in parallel
-        const resolvedProductClips: Array<{ cloudinaryUrl: string; order: number; durationSeconds: number }> =
+        // FIX 8: try/catch per clip — a single upload failure must not strand the whole run.
+        const resolvedProductClipsRaw: Array<{ cloudinaryUrl: string; order: number; durationSeconds: number } | null> =
           await Promise.all(
             productRawClips.map(clip =>
               step.run(`cloudinary-upload-product-broll-${clip.order}`, async () => {
                 await connectDB();
-                const uploaded = await cloudinaryService.uploadVideo(clip.rawUrl, {
-                  folder: "beyond-social/clips",
-                  tags: ["broll", "ai-generated", videoType],
-                });
-                const url = uploaded.secure_url;
-                await Job.findByIdAndUpdate(jobId, {
-                  $push: { completedClipUrls: url },
-                  $inc: { completedClips: 1 },
-                });
-                return { cloudinaryUrl: url, order: clip.order, durationSeconds: clip.durationSeconds };
+                try {
+                  const uploaded = await cloudinaryService.uploadVideo(clip.rawUrl, {
+                    folder: "beyond-social/clips",
+                    tags: ["broll", "ai-generated", videoType],
+                  });
+                  const url = uploaded.secure_url;
+                  await Job.findByIdAndUpdate(jobId, {
+                    $push: { completedClipUrls: url },
+                    $inc: { completedClips: 1 },
+                  });
+                  return { cloudinaryUrl: url, order: clip.order, durationSeconds: clip.durationSeconds };
+                } catch (uploadErr) {
+                  console.error(`[Inngest][${projectId}] Cloudinary upload failed for product broll order=${clip.order}:`, uploadErr);
+                  return null;
+                }
               })
             )
           );
+        const resolvedProductClips = resolvedProductClipsRaw.filter(
+          (c): c is { cloudinaryUrl: string; order: number; durationSeconds: number } => c !== null
+        );
 
         const sortedProductClips = resolvedProductClips.sort((a, b) => a.order - b.order);
 
@@ -606,9 +647,10 @@ export const generatePremiumVideo = inngest.createFunction(
         let productShotstackUrl: string | null = null;
 
         if (!dev) {
+          // FIX 4: match on renderId — same reason as person path above.
           const shotstackDoneProduct = await step.waitForEvent("shotstack-done-product", {
             event: "video/shotstack.completed",
-            match: "data.projectId",
+            if: `async.data.renderId == "${compositionProduct.renderId}"`,
             timeout: "10m",
           });
 
@@ -643,27 +685,45 @@ export const generatePremiumVideo = inngest.createFunction(
         }
 
         // Upload final composed video to Cloudinary
+        // FIX 8: try/catch with Shotstack URL fallback — same reasoning as person path.
         const finalProductUrl = await step.run("upload-final-to-cloudinary-product", async () => {
           console.log(`[Inngest][${projectId}] Step 8b: uploading final product video to Cloudinary`);
-          const uploaded = await cloudinaryService.uploadVideo(productShotstackUrl!, {
-            folder: `beyond-social/projects/${projectId}`,
-            tags: ["final", "composed", videoType],
-          });
-          console.log(`[Inngest][${projectId}] Step 8b ✓ finalUrl=${uploaded.secure_url}`);
-          return uploaded.secure_url;
+          try {
+            const uploaded = await cloudinaryService.uploadVideo(productShotstackUrl!, {
+              folder: `beyond-social/projects/${projectId}`,
+              tags: ["final", "composed", videoType],
+              large: true, // FIX 6: use upload_large() — composed MP4s can exceed 100 MB
+            });
+            console.log(`[Inngest][${projectId}] Step 8b ✓ finalUrl=${uploaded.secure_url}`);
+            return uploaded.secure_url;
+          } catch (cloudErr) {
+            console.error(`[Inngest][${projectId}] Step 8b ✗ Cloudinary upload failed — falling back to Shotstack URL:`, cloudErr);
+            return productShotstackUrl!;
+          }
         });
 
+        // FIX 8: inner retry loop on the DB writes — same reasoning as person path.
         await step.run("persist-result-product", async () => {
           await connectDB();
           console.log(`[Inngest][${projectId}] Step 9b ✓ persisting final product video`);
-          await Project.findByIdAndUpdate(projectId, {
-            status: "completed",
-            generatedVideoUrl: finalProductUrl,
-            videoUrl: finalProductUrl,
-            brollClipUrls: sortedProductClips.map(c => c.cloudinaryUrl),
-            generationEngine: `kling-2.5+tts+shotstack-${videoType}`,
-          });
-          await Job.findByIdAndUpdate(jobId, { status: "completed" });
+          let lastErr: unknown;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await Project.findByIdAndUpdate(projectId, {
+                status: "completed",
+                generatedVideoUrl: finalProductUrl,
+                videoUrl: finalProductUrl,
+                brollClipUrls: sortedProductClips.map(c => c.cloudinaryUrl),
+                generationEngine: `kling-2.5+tts+shotstack-${videoType}`,
+              });
+              await Job.findByIdAndUpdate(jobId, { status: "completed" });
+              return;
+            } catch (dbErr) {
+              lastErr = dbErr;
+              console.warn(`[Inngest][${projectId}] persist-result-product attempt ${attempt + 1} failed:`, dbErr);
+            }
+          }
+          throw lastErr;
         });
       }
 
