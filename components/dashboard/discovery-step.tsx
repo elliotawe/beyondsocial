@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { TikTokVideo } from "@/app/api/tiktok-search/route"
@@ -683,12 +684,12 @@ export function DiscoveryStep({ onSelectBrief }: DiscoveryStepProps) {
                                         <p className="text-xs text-muted-foreground">The messier the better — describe it like you're texting a friend.</p>
                                     </div>
                                     <div className="relative rounded-lg border border-border bg-card focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40 transition-all">
-                                        <textarea
+                                        <Textarea
                                             value={roughIdea}
                                             onChange={e => setRoughIdea(e.target.value)}
                                             rows={5}
                                             placeholder="e.g. I want to make a video about how I went from making $0 to $5k/month selling digital products, but make it feel like I'm sharing a secret with a friend rather than bragging…"
-                                            className="w-full bg-transparent p-4 text-base placeholder:text-muted-foreground/40 resize-none focus:outline-none font-medium leading-relaxed"
+                                            className="border-none bg-transparent p-4 text-base placeholder:text-muted-foreground/40 resize-none font-medium leading-relaxed focus-visible:ring-0 shadow-none"
                                         />
                                         <div className="px-4 pb-3 flex items-center justify-between border-t border-border/20 pt-3">
                                             <span className="text-[10px] text-muted-foreground/40">

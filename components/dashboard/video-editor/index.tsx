@@ -27,6 +27,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 
 interface VideoEditorProps {
@@ -173,20 +175,21 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                 {/* Left: Tool icon rail */}
                 <div className="hidden md:flex w-16 border-r border-border/40 flex-col items-center py-4 gap-1 bg-card/30 shrink-0">
                     {TOOL_TABS.map((tab) => (
-                        <button
+                        <Button
                             key={tab.id}
+                            variant="ghost"
                             onClick={() => setActiveTab(tab.id)}
                             aria-label={tab.label}
                             className={cn(
-                                "flex flex-col items-center gap-1 p-2 w-12 rounded-xl transition-all duration-150",
+                                "flex flex-col items-center gap-1 p-2 h-auto w-12 rounded-xl transition-all duration-150",
                                 activeTab === tab.id
-                                    ? "bg-primary/15 text-primary"
+                                    ? "bg-primary/15 text-primary hover:bg-primary/15"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                             )}
                         >
                             <tab.icon className="size-5" />
                             <span className="text-[9px] font-bold uppercase tracking-wide leading-none">{tab.label}</span>
-                        </button>
+                        </Button>
                     ))}
                     <div className="mt-auto">
                         <Button variant="ghost" size="icon" className="rounded-xl w-10 h-10">
@@ -210,12 +213,13 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Auto Layout</p>
                                     <div className="grid grid-cols-2 gap-2">
                                         {["Fit", "Fill", "Pan", "Zoom"].map(l => (
-                                            <button
+                                            <Button
                                                 key={l}
-                                                className="p-3 bg-card border border-border/40 rounded-xl text-center text-xs font-bold hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer"
+                                                variant="outline"
+                                                className="p-3 h-auto bg-card border-border/40 rounded-xl text-center text-xs font-bold hover:border-primary/30 hover:bg-primary/5"
                                             >
                                                 {l}
-                                            </button>
+                                            </Button>
                                         ))}
                                     </div>
                                 </div>
@@ -237,13 +241,14 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                             <div className="space-y-3">
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">AI Suggested Tracks</p>
                                 {["Ambient Flow", "Tech Pulse", "Cinematic Rise", "Lo-Fi Focus"].map((track) => (
-                                    <button
+                                    <Button
                                         key={track}
+                                        variant="ghost"
                                         onClick={() => setSelectedAudio(track)}
                                         className={cn(
-                                            "w-full p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-left",
+                                            "w-full h-auto p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 text-left",
                                             selectedAudio === track
-                                                ? "bg-primary/10 border-primary/30"
+                                                ? "bg-primary/10 border-primary/30 hover:bg-primary/10"
                                                 : "bg-card border-border/40 hover:border-primary/20 hover:bg-card/80"
                                         )}
                                     >
@@ -257,7 +262,7 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                                             <span className="text-sm font-semibold">{track}</span>
                                         </div>
                                         {selectedAudio === track && <Check className="size-4 text-primary shrink-0" />}
-                                    </button>
+                                    </Button>
                                 ))}
                             </div>
                         )}
@@ -279,16 +284,18 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                                                 <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
                                                     {cap.start}s – {cap.end}s
                                                 </Badge>
-                                                <button
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     aria-label="Delete caption"
-                                                    className="rounded-lg p-1 hover:bg-destructive/10 transition-colors"
+                                                    className="h-6 w-6 hover:bg-destructive/10"
                                                 >
                                                     <Trash2 className="size-3 text-destructive/60" />
-                                                </button>
+                                                </Button>
                                             </div>
                                             <div className="p-2">
-                                                <textarea
-                                                    className="w-full bg-transparent border-none rounded-lg p-1.5 text-sm focus:ring-0 resize-none font-medium min-h-[56px] placeholder:text-muted-foreground/40 focus:outline-none"
+                                                <Textarea
+                                                    className="bg-transparent border-none rounded-lg p-1.5 text-sm focus-visible:ring-0 resize-none font-medium min-h-[56px] placeholder:text-muted-foreground/40 shadow-none"
                                                     value={cap.text}
                                                     onChange={(e) => {
                                                         const newCaps = captions.map(c =>
@@ -317,13 +324,12 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                                             <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
                                             <span className="text-xs font-bold text-primary tabular-nums">{displayVal}</span>
                                         </div>
-                                        <input
-                                            type="range"
-                                            value={value}
-                                            onChange={e => onChange(Number(e.target.value))}
+                                        <Slider
+                                            value={[value]}
+                                            onValueChange={([v]) => onChange(v)}
                                             max={100}
                                             step={1}
-                                            className="w-full accent-primary h-1.5 cursor-pointer"
+                                            className="w-full"
                                         />
                                     </div>
                                 ))}
@@ -332,12 +338,13 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Color Presets</p>
                                     <div className="grid grid-cols-2 gap-2">
                                         {["Cinematic", "Noir", "Vintage", "Warm"].map(p => (
-                                            <button
+                                            <Button
                                                 key={p}
-                                                className="py-3 bg-muted/40 rounded-xl border border-border/40 flex items-center justify-center hover:border-primary/30 hover:bg-primary/5 cursor-pointer font-bold text-[11px] uppercase tracking-wider text-muted-foreground hover:text-primary transition-all"
+                                                variant="outline"
+                                                className="h-auto py-3 bg-muted/40 border-border/40 rounded-xl flex items-center justify-center hover:border-primary/30 hover:bg-primary/5 font-bold text-[11px] uppercase tracking-wider text-muted-foreground hover:text-primary"
                                             >
                                                 {p}
-                                            </button>
+                                            </Button>
                                         ))}
                                     </div>
                                 </div>
@@ -403,21 +410,24 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
 
                     {/* Floating controls */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-card/80 backdrop-blur-xl px-5 py-2.5 rounded-2xl border border-white/10 shadow-2xl">
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => seekTo(0)}
                             aria-label="Restart"
-                            className="rounded-xl p-2 text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                            className="rounded-xl h-9 w-9 text-white/60 hover:text-white hover:bg-white/10"
                         >
                             <RotateCcw className="size-4" />
-                        </button>
+                        </Button>
 
-                        <button
+                        <Button
+                            size="icon"
                             onClick={togglePlay}
                             aria-label={isPlaying ? "Pause" : "Play"}
-                            className="size-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center shadow-md transition-all"
+                            className="size-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
                         >
                             {isPlaying ? <Pause className="size-5 fill-current" /> : <Play className="size-5 fill-current ml-0.5" />}
-                        </button>
+                        </Button>
 
                         <div className="h-4 w-px bg-white/10" />
 
@@ -430,16 +440,15 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                         <div className="h-4 w-px bg-white/10 hidden md:block" />
 
                         <div className="hidden md:flex items-center gap-2">
-                            <button onClick={toggleMute} aria-label={isMuted ? "Unmute" : "Mute"} className="text-white/60 hover:text-white transition-colors p-1">
+                            <Button variant="ghost" size="icon" onClick={toggleMute} aria-label={isMuted ? "Unmute" : "Mute"} className="h-7 w-7 text-white/60 hover:text-white hover:bg-white/10">
                                 {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-                            </button>
-                            <input
-                                type="range"
-                                value={isMuted ? 0 : volume}
-                                onChange={e => handleVolumeChange(Number(e.target.value))}
+                            </Button>
+                            <Slider
+                                value={[isMuted ? 0 : volume]}
+                                onValueChange={([v]) => handleVolumeChange(v)}
                                 max={100}
                                 step={1}
-                                className="w-16 accent-white h-1 cursor-pointer"
+                                className="w-16"
                             />
                         </div>
                     </div>
@@ -450,16 +459,16 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
             <div className="border-t border-border/40 bg-card/50 shrink-0">
                 {/* Timeline toolbar */}
                 <div className="h-9 border-b border-border/30 px-4 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-muted/10">
-                    <div className="flex items-center gap-4">
-                        <button className="flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors">
+                    <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" className="h-6 px-2 gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:text-primary/80">
                             <Split className="size-3" /> Split
-                        </button>
-                        <button className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors">
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground">
                             <Scissors className="size-3" /> Trim
-                        </button>
-                        <button className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors">
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground">
                             <X className="size-3" /> Clear
-                        </button>
+                        </Button>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="hidden sm:flex items-center gap-1.5">
@@ -516,9 +525,10 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                             <span className="w-16 text-[9px] font-bold uppercase tracking-wider text-blue-500/60 text-right shrink-0">Caption</span>
                             <div className="flex-1 h-7 bg-blue-500/5 rounded border border-blue-500/10 relative overflow-hidden">
                                 {captions.map(cap => (
-                                    <button
+                                    <Button
                                         key={cap.id}
-                                        className="absolute h-full bg-blue-500/20 border-x border-blue-500/40 flex items-center px-2 text-[10px] font-bold text-blue-400 truncate cursor-pointer hover:bg-blue-500/30 transition-colors"
+                                        variant="ghost"
+                                        className="absolute h-full rounded-none bg-blue-500/20 border-x border-blue-500/40 flex items-center px-2 text-[10px] font-bold text-blue-400 truncate hover:bg-blue-500/30"
                                         style={{
                                             left: `${(cap.start / (duration || 1)) * 100}%`,
                                             width: `${Math.max(2, ((cap.end - cap.start) / (duration || 1)) * 100)}%`
@@ -526,7 +536,7 @@ export function VideoEditor({ videoUrl, initialCaptions, onExport, onClose }: Vi
                                         onClick={() => seekTo(cap.start)}
                                     >
                                         {cap.text}
-                                    </button>
+                                    </Button>
                                 ))}
                             </div>
                         </div>

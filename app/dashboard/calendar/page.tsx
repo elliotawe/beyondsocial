@@ -111,7 +111,7 @@ export default function ContentCalendarPage() {
                 </div>
             </div>
 
-            <Card className="border-border shadow-sm overflow-hidden rounded-[32px]">
+            <Card className="border-border shadow-sm overflow-hidden rounded-2xl">
                 <CardHeader className="border-b bg-muted/20 flex flex-row items-center justify-between py-6 px-8">
                     <div className="flex items-center gap-4">
                         <div className="p-2.5 rounded-2xl bg-primary/10">
@@ -183,15 +183,15 @@ export default function ContentCalendarPage() {
             </Card>
 
             <div className="grid gap-8 md:grid-cols-3">
-                <Card className="md:col-span-2 border-border/40 shadow-sm rounded-[32px] overflow-hidden bg-card/50 backdrop-blur-sm">
+                <Card className="md:col-span-2 border-border/40 shadow-sm rounded-2xl overflow-hidden bg-card/50 backdrop-blur-sm">
                     <CardHeader className="py-8 px-8">
                         <CardTitle className="text-xl font-bold ">Upcoming Schedule</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 px-8 pb-8">
                         {upcomingScheduled.length > 0 ? (
                             upcomingScheduled.map(event => (
-                                <div key={event._id} className="flex items-center gap-5 p-5 rounded-[24px] bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors group">
-                                    <div className="w-16 h-16 rounded-[18px] bg-background flex items-center justify-center overflow-hidden border border-border/50 relative">
+                                <div key={event._id} className="flex items-center gap-5 p-5 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors group">
+                                    <div className="w-16 h-16 rounded-xl bg-background flex items-center justify-center overflow-hidden border border-border/50 relative">
                                         {event.thumbnail ? (
                                             <Image src={event.thumbnail} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" alt={event.title} width={64} height={64} />
                                         ) : (
@@ -218,7 +218,7 @@ export default function ContentCalendarPage() {
                                 </div>
                             ))
                         ) : (
-                            <div className="text-center py-20 text-muted-foreground border-2 border-dashed border-border/40 rounded-[32px] bg-muted/10">
+                            <div className="text-center py-20 text-muted-foreground border-2 border-dashed border-border/40 rounded-2xl bg-muted/10">
                                 <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-10" />
                                 <p className="font-medium">No upcoming scheduled posts.</p>
                                 <Button variant="link" asChild className="mt-2 text-primary font-bold">
@@ -229,7 +229,7 @@ export default function ContentCalendarPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-border/40 shadow-sm rounded-[32px] bg-card/50 backdrop-blur-sm overflow-hidden">
+                <Card className="border-border/40 shadow-sm rounded-2xl bg-card/50 backdrop-blur-sm overflow-hidden">
                     <CardHeader className="py-8 px-8">
                         <CardTitle className="text-xl font-bold ">Legend</CardTitle>
                     </CardHeader>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Calendar as CalendarIcon, Clock, Share2, /* Check, */ AlertCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -134,12 +135,11 @@ export function ProjectScheduler({
                                 <Clock className="w-3.5 h-3.5" />
                                 Date & Time
                             </Label>
-                            <input
+                            <Input
                                 id="schedule-time"
                                 type="datetime-local"
                                 value={scheduledAt}
                                 onChange={(e) => setScheduledAt(e.target.value)}
-                                className="w-full bg-background/50 border border-border/40 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-primary outline-none"
                                 disabled={socialStatus === "posted" || isSaving}
                             />
                         </div>

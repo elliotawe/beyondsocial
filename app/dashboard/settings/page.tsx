@@ -260,7 +260,7 @@ export default function SettingsPage() {
                     {/* ── GENERAL ── */}
                     {activeTab === "general" && (
                         <>
-                            <Card className="border-none shadow-sm dark:bg-zinc-900">
+                            <Card className="border-none shadow-sm dark:bg-card">
                                 <CardHeader>
                                     <CardTitle>Profile Details</CardTitle>
                                     <CardDescription>How you appear across the platform.</CardDescription>
@@ -303,7 +303,7 @@ export default function SettingsPage() {
                     {/* ── NOTIFICATIONS ── */}
                     {activeTab === "notifications" && (
                         <>
-                            <Card className="border-none shadow-sm dark:bg-zinc-900">
+                            <Card className="border-none shadow-sm dark:bg-card">
                                 <CardHeader>
                                     <CardTitle>Notification Preferences</CardTitle>
                                     <CardDescription>Control how Beyond Social keeps you informed.</CardDescription>
@@ -344,7 +344,7 @@ export default function SettingsPage() {
                     {/* ── SECURITY ── */}
                     {activeTab === "security" && (
                         <>
-                            <Card className="border-none shadow-sm dark:bg-zinc-900">
+                            <Card className="border-none shadow-sm dark:bg-card">
                                 <CardHeader>
                                     <CardTitle>Change Password</CardTitle>
                                     <CardDescription>
@@ -366,13 +366,15 @@ export default function SettingsPage() {
                                                         className="rounded-xl pr-10"
                                                         placeholder="••••••••"
                                                     />
-                                                    <button
+                                                    <Button
                                                         type="button"
+                                                        variant="ghost"
+                                                        size="icon"
                                                         onClick={() => setShowCurrentPw(p => !p)}
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
                                                     >
                                                         {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
@@ -385,13 +387,15 @@ export default function SettingsPage() {
                                                         className="rounded-xl pr-10"
                                                         placeholder="Min. 8 characters"
                                                     />
-                                                    <button
+                                                    <Button
                                                         type="button"
+                                                        variant="ghost"
+                                                        size="icon"
                                                         onClick={() => setShowNewPw(p => !p)}
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
                                                     >
                                                         {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
@@ -429,7 +433,7 @@ export default function SettingsPage() {
                     {/* ── AI DEFAULTS ── */}
                     {activeTab === "aidefaults" && (
                         <>
-                            <Card className="border-none shadow-sm dark:bg-zinc-900">
+                            <Card className="border-none shadow-sm dark:bg-card">
                                 <CardHeader>
                                     <CardTitle>AI & Content Defaults</CardTitle>
                                     <CardDescription>Pre-configure how the AI generates your content.</CardDescription>
@@ -470,7 +474,7 @@ export default function SettingsPage() {
                                 </CardContent>
                             </Card>
 
-                            <Card className="border-none shadow-sm dark:bg-zinc-900">
+                            <Card className="border-none shadow-sm dark:bg-card">
                                 <CardHeader>
                                     <CardTitle>AI Credit Costs</CardTitle>
                                     <CardDescription>Credits are deducted each time you use an AI feature.</CardDescription>
@@ -511,7 +515,7 @@ export default function SettingsPage() {
                             ) : creditData ? (
                                 <>
                                     {/* Plan + Credit summary */}
-                                    <Card className="border-none shadow-sm dark:bg-zinc-900">
+                                    <Card className="border-none shadow-sm dark:bg-card">
                                         <CardHeader className="flex flex-row items-center justify-between">
                                             <div>
                                                 <CardTitle>Plan & Credits</CardTitle>
@@ -596,7 +600,7 @@ export default function SettingsPage() {
                                     </Card>
 
                                     {/* Credit history */}
-                                    <Card className="border-none shadow-sm dark:bg-zinc-900">
+                                    <Card className="border-none shadow-sm dark:bg-card">
                                         <CardHeader>
                                             <CardTitle>Credit History</CardTitle>
                                             <CardDescription>A full audit trail of every credit event on your account.</CardDescription>
