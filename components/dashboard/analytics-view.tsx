@@ -40,27 +40,27 @@ export function AnalyticsChart({ data }: AnalyticsChartProps) {
                         <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorEngagement" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
                     </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis
                     dataKey="name"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "#666", fontSize: 12 }}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
                     dy={10}
                 />
                 <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "#666", fontSize: 12 }}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
                 />
                 <Tooltip
                     contentStyle={{
-                        backgroundColor: "#18181b",
-                        border: "1px solid rgba(255,255,255,0.1)",
+                        backgroundColor: "var(--card)",
+                        border: "1px solid var(--border)",
                         borderRadius: "12px",
                         fontSize: "12px",
                     }}
@@ -77,7 +77,7 @@ export function AnalyticsChart({ data }: AnalyticsChartProps) {
                 <Area
                     type="monotone"
                     dataKey="engagement"
-                    stroke="#10b981"
+                    stroke="var(--chart-2)"
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorEngagement)"

@@ -90,7 +90,7 @@ export default function AnalyticsPage() {
                                     contentStyle={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)', borderRadius: '12px' }}
                                 />
                                 <Bar dataKey="views" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={20} />
-                                <Bar dataKey="engagement" fill="var(--color-secondary)" radius={[4, 4, 0, 0]} barSize={20} />
+                                <Bar dataKey="engagement" fill="var(--chart-2)" radius={[4, 4, 0, 0]} barSize={20} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>

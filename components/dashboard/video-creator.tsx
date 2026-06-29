@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import NextImage from "next/image";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { DiscoveryStep } from "./discovery-step";
 import { VideoEditor } from "./video-editor";
@@ -128,21 +129,20 @@ function ChipSelector({ options, value, onChange }: {
     return (
         <div className="flex flex-wrap gap-1.5" role="group">
             {options.map(opt => (
-                <button
+                <Button
                     key={opt.value}
                     type="button"
                     onClick={() => onChange(opt.value)}
                     aria-pressed={value === opt.value}
                     className={cn(
-                        "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                        "h-auto px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150",
                         value === opt.value
-                            ? "bg-foreground text-background border-transparent shadow-sm"
-                            : "bg-transparent border-border/50 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                            ? "bg-foreground text-background border-transparent shadow-sm hover:bg-foreground/90"
+                            : "bg-transparent border-border/50 text-muted-foreground hover:border-foreground/30 hover:text-foreground hover:bg-transparent"
                     )}
                 >
                     {opt.label}
-                </button>
+                </Button>
             ))}
         </div>
     );
@@ -173,14 +173,16 @@ function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () =>
         >
             <AlertCircle className="size-4 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
             <p className="flex-1 text-destructive/90 leading-snug">{message}</p>
-            <button
+            <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={onDismiss}
                 aria-label="Dismiss error"
-                className="text-destructive/50 hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/50 rounded"
+                className="h-6 w-6 text-destructive/50 hover:text-destructive hover:bg-transparent"
             >
                 <X className="size-3.5" />
-            </button>
+            </Button>
         </motion.div>
     );
 }
@@ -232,7 +234,10 @@ export function VideoCreator() {
         totalClips: number; completedClips: number; currentStage: string;
         clips?: { type: "avatar" | "broll"; label: string; status: string; queuePosition?: number }[];
         completedClipUrls?: string[];
-    }>({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", completedClipUrls: [] });
+        audioUrl?: string | null;
+        avatarClipUrl?: string | null;
+        brollClipUrls?: string[];
+    }>({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", completedClipUrls: [], brollClipUrls: [] });
 
     // Check if the user has a cloned voice saved
     useEffect(() => {
@@ -508,6 +513,9 @@ export function VideoCreator() {
                         currentStage: result.progress.currentStage ?? "Processing…",
                         clips: result.progress.clips ?? [],
                         completedClipUrls: result.progress.completedClipUrls ?? [],
+                        audioUrl: result.progress.audioUrl ?? null,
+                        avatarClipUrl: result.progress.avatarClipUrl ?? null,
+                        brollClipUrls: result.progress.brollClipUrls ?? [],
                     });
                 }
                 if (result.status === "completed" && result.videoUrl) {
@@ -547,7 +555,7 @@ export function VideoCreator() {
         setProjectId(null); setSelectedIndustry(null); setAutoCaptions([]);
         setRecommendedHashtags([]); setError(null); setVideoType(null);
         setPortraitImageUrl(null);
-        setRenderProgress({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", clips: [], completedClipUrls: [] });
+        setRenderProgress({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", clips: [], completedClipUrls: [], brollClipUrls: [] });
     };
 
     // ─── Render ───────────────────────────────────────────────────────────────
@@ -590,16 +598,16 @@ export function VideoCreator() {
                                         { type: "product" as const,  icon: Package,   title: "Product / Brand", desc: "Product visuals + voiceover" },
                                         { type: "property" as const, icon: Building2, title: "Property Tour",   desc: "Location visuals + voiceover" },
                                     ]).map(({ type, icon: Icon, title, desc }) => (
-                                        <button
+                                        <Button
                                             key={type}
                                             type="button"
                                             onClick={() => { setVideoType(type); if (type !== "person") setPortraitImageUrl(null); }}
                                             aria-pressed={videoType === type}
                                             className={cn(
-                                                "relative rounded-2xl border-2 p-4 text-left transition-all duration-200 overflow-hidden",
-                                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                                                "relative h-auto rounded-2xl border-2 p-4 text-left transition-all duration-200 overflow-hidden flex-col items-start",
+                                                "focus-visible:ring-2 focus-visible:ring-primary/50",
                                                 videoType === type
-                                                    ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
+                                                    ? "border-primary bg-primary/5 shadow-lg shadow-primary/10 hover:bg-primary/5"
                                                     : "border-border/40 bg-card/40 hover:border-border/70 hover:bg-card/70 hover:shadow-sm hover:-translate-y-0.5"
                                             )}
                                         >
@@ -629,7 +637,7 @@ export function VideoCreator() {
                                             </div>
                                             <p className="text-sm font-bold leading-tight pr-5">{title}</p>
                                             <p className="text-[11px] text-muted-foreground/60 leading-snug mt-1">{desc}</p>
-                                        </button>
+                                        </Button>
                                     ))}
                                 </div>
                             </div>
@@ -650,14 +658,15 @@ export function VideoCreator() {
                                             {portraitImageUrl ? (
                                                 <div className="relative w-28 h-28 rounded-2xl overflow-hidden border-2 border-primary/40 group shrink-0 shadow-lg shadow-primary/10">
                                                     <NextImage src={portraitImageUrl} alt="Your headshot" className="object-cover w-full h-full" width={112} height={112} unoptimized />
-                                                    <button
+                                                    <Button
                                                         type="button"
+                                                        variant="ghost"
                                                         onClick={() => setPortraitImageUrl(null)}
                                                         aria-label="Remove headshot"
-                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center focus-visible:outline-none"
+                                                        className="absolute inset-0 h-full w-full rounded-none bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/60"
                                                     >
                                                         <X className="size-5 text-white" />
-                                                    </button>
+                                                    </Button>
                                                     <div className="absolute bottom-2 right-2 size-6 rounded-full bg-primary flex items-center justify-center shadow-md">
                                                         <Check className="size-3.5 text-primary-foreground" />
                                                     </div>
@@ -700,9 +709,9 @@ export function VideoCreator() {
                                             {uploadedImages.map((url, i) => (
                                                 <div key={i} className="relative size-20 rounded-xl overflow-hidden border border-border/50 group shrink-0">
                                                     <NextImage src={url} alt={`Content image ${i + 1}`} className="object-cover w-full h-full" width={80} height={80} unoptimized={url.startsWith("data:")} />
-                                                    <button type="button" onClick={() => removeImage(i)} aria-label={`Remove image ${i + 1}`} className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center focus-visible:outline-none">
+                                                    <Button type="button" variant="ghost" onClick={() => removeImage(i)} aria-label={`Remove image ${i + 1}`} className="absolute inset-0 h-full w-full rounded-none bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/60">
                                                         <X className="size-4 text-white" />
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             ))}
                                             <label className={cn(
@@ -796,27 +805,26 @@ export function VideoCreator() {
                                     ].map(({ label, cloned }) => {
                                         const disabled = cloned && !hasClonedVoice;
                                         return (
-                                            <button
+                                            <Button
                                                 key={label}
                                                 type="button"
                                                 disabled={disabled}
                                                 onClick={() => !disabled && setUseClonedVoice(cloned)}
                                                 aria-pressed={useClonedVoice === cloned}
                                                 className={cn(
-                                                    "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 flex items-center gap-1.5",
-                                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                                                    "h-auto px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 flex items-center gap-1.5",
                                                     disabled
-                                                        ? "opacity-40 cursor-not-allowed bg-transparent border-border/30 text-muted-foreground"
+                                                        ? "opacity-40 cursor-not-allowed bg-transparent border-border/30 text-muted-foreground hover:bg-transparent"
                                                         : useClonedVoice === cloned
-                                                            ? "bg-foreground text-background border-transparent shadow-sm"
-                                                            : "bg-transparent border-border/50 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                                                            ? "bg-foreground text-background border-transparent shadow-sm hover:bg-foreground/90"
+                                                            : "bg-transparent border-border/50 text-muted-foreground hover:border-foreground/30 hover:text-foreground hover:bg-transparent"
                                                 )}
                                             >
                                                 {cloned && hasClonedVoice && (
                                                     <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
                                                 )}
                                                 {label}
-                                            </button>
+                                            </Button>
                                         );
                                     })}
                                     {!hasClonedVoice && (
@@ -975,11 +983,11 @@ export function VideoCreator() {
                                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Call to Action</span>
                                 </div>
                                 <div className="px-5 py-4">
-                                    <input
+                                    <Input
                                         value={refinedScript.cta}
                                         onChange={e => updateCTA(e.target.value)}
                                         aria-label="Call to action text"
-                                        className="w-full bg-transparent border-none text-base font-bold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 rounded placeholder:text-muted-foreground/20"
+                                        className="bg-transparent border-none text-base font-bold focus-visible:ring-1 focus-visible:ring-primary/30 px-0 shadow-none placeholder:text-muted-foreground/20"
                                         placeholder="Add your call to action…"
                                     />
                                 </div>
@@ -1072,7 +1080,32 @@ export function VideoCreator() {
                                     )}
                                 </div>
 
-                                {/* Per-clip chips */}
+                                {/* Voiceover ready — show audio player as soon as it's generated */}
+                                <AnimatePresence>
+                                    {renderProgress.audioUrl && (
+                                        <motion.div
+                                            key="audio-ready"
+                                            initial={{ opacity: 0, y: 6 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.25 }}
+                                            className="rounded-xl border border-green-500/20 bg-green-500/5 p-3 space-y-2"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Check className="size-3 text-green-400 shrink-0" aria-hidden="true" />
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">Voiceover ready</span>
+                                            </div>
+                                            <audio
+                                                src={renderProgress.audioUrl}
+                                                controls
+                                                className="w-full h-8"
+                                                aria-label="Generated voiceover preview"
+                                            />
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Per-clip status chips */}
                                 {(renderProgress.clips?.length ?? 0) > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                         {renderProgress.clips!.map((clip, i) => {
@@ -1110,15 +1143,15 @@ export function VideoCreator() {
                                     </div>
                                 )}
 
-                                {/* Partial clip preview — shown as soon as individual clips finish */}
+                                {/* Completed clips — appear as each clip finishes uploading */}
                                 {(renderProgress.completedClipUrls?.length ?? 0) > 0 && (
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
-                                            Clips ready — final composition in progress
+                                            Clips ready — assembling final video
                                         </p>
                                         <div className="flex gap-2 flex-wrap">
                                             {renderProgress.completedClipUrls!.map((url, i) => (
-                                                <div key={i} className="relative w-16 aspect-9/16 rounded-lg overflow-hidden bg-black border border-border/30">
+                                                <div key={i} className="relative w-16 aspect-9/16 rounded-lg overflow-hidden bg-black border border-border/30 group">
                                                     <video
                                                         src={url}
                                                         muted
@@ -1128,21 +1161,20 @@ export function VideoCreator() {
                                                         className="w-full h-full object-cover"
                                                         aria-label={`Clip ${i + 1} preview`}
                                                     />
+                                                    <div className="absolute bottom-1 right-1 size-4 rounded-full bg-green-500/80 flex items-center justify-center" aria-hidden="true">
+                                                        <Check className="size-2.5 text-white" />
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Engine attribution */}
-                                <p className="text-[10px] text-muted-foreground/25 font-bold uppercase tracking-widest">
-                                    Aurora · Kling 2.5 · Shotstack
-                                </p>
                             </div>
 
                             {/* Notify CTA */}
-                            <button
+                            <Button
                                 type="button"
+                                variant="ghost"
                                 onClick={() => {
                                     if ("Notification" in window) {
                                         Notification.requestPermission().then(p => {
@@ -1152,11 +1184,11 @@ export function VideoCreator() {
                                         toast.info("Notifications not supported in this browser.");
                                     }
                                 }}
-                                className="w-full flex items-center justify-center gap-2 text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-2 font-medium rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                className="w-full gap-2 text-xs text-muted-foreground/40 hover:text-muted-foreground/70 font-medium"
                             >
                                 <Bell className="size-3.5" aria-hidden="true" />
                                 Notify me when done
-                            </button>
+                            </Button>
                         </div>
                     </motion.div>
                 )}
