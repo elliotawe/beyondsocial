@@ -33,6 +33,7 @@ const JobSchema = new Schema(
         completedClips: { type: Number, default: 0 },
         completedClipUrls: [String],         // Cloudinary URLs as each clip finishes (for partial preview)
         renderId: String,                    // Shotstack render ID
+        audioUrl: String,                    // generated voiceover URL (surfaced to SSE stream)
     },
     { timestamps: true }
 );

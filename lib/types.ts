@@ -57,7 +57,7 @@ export interface IProject {
     script?: IRefinedScript;
     uploadedImages: string[];
     generatedVideoUrl?: string;
-    videoUrl?: string; // Client-side often uses videoUrl
+    videoUrl?: string;
     thumbnail?: string;
     taskId?: string;
     scheduledAt?: string | Date;
@@ -65,6 +65,9 @@ export interface IProject {
     socialStatus: "idle" | "scheduled" | "posted" | "failed";
     createdAt: string;
     aspectRatio?: string;
+    videoType?: "person" | "product" | "property";
+    avatarClipUrl?: string;
+    brollClipUrls?: string[];
 }
 
 export interface IJob {
