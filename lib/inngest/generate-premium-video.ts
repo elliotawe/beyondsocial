@@ -124,16 +124,26 @@ export const generatePremiumVideo = inngest.createFunction(
       const { projectId, userId } = originalEvent.data;
       const rawMsg = error instanceof Error ? error.message : String(error);
       const userMsg = friendlyError(rawMsg);
-      try {
-        await connectDB();
-        await Project.findByIdAndUpdate(projectId, {
-          status: "failed",
-          error: userMsg,
-        });
-        await refundCredits(userId, "video_generation", projectId);
-      } catch (cleanupErr) {
-        console.error(`[Inngest][${projectId}] onFailure cleanup threw:`, cleanupErr);
+
+      // Retry the DB write up to 3 times — a transient Mongo blip in onFailure
+      // would otherwise silently leave the project stuck at "processing".
+      let lastErr: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await connectDB();
+          await Project.findByIdAndUpdate(projectId, {
+            status: "failed",
+            error: userMsg,
+          });
+          // refundCredits is idempotent — safe to retry; early-exits if already refunded.
+          await refundCredits(userId, "video_generation", projectId);
+          return; // success
+        } catch (cleanupErr) {
+          lastErr = cleanupErr;
+          console.warn(`[Inngest][${projectId}] onFailure attempt ${attempt + 1} threw:`, cleanupErr);
+        }
       }
+      console.error(`[Inngest][${projectId}] onFailure gave up after 3 attempts:`, lastErr);
     },
   },
   async ({ event, step }) => {

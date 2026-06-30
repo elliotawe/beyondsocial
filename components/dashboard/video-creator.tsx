@@ -241,6 +241,9 @@ export function VideoCreator() {
     const [generationError, setGenerationError] = useState<string | null>(null);
     const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [notifyWhenDone, setNotifyWhenDone] = useState(false);
+    // Prevents a flash of step 0 before localStorage rehydration resolves on mount.
+    const [isHydrating, setIsHydrating] = useState(true);
 
     // Check if the user has a cloned voice saved
     useEffect(() => {
@@ -263,6 +266,137 @@ export function VideoCreator() {
         }, 1000);
         return () => clearInterval(id);
     }, [isGenerating, generationStartedAt]);
+
+    // ─── Persist draft + generation to localStorage ───────────────────────────
+    // Writes a snapshot on every relevant state change so a refresh can resume.
+    useEffect(() => {
+        if (isHydrating) return; // don't overwrite the stored snapshot before we've read it
+        try {
+            const snapshot = {
+                step, roughIdea, style, tone,
+                refinedScript, uploadedImages, videoType, portraitImageUrl,
+                selectedIndustry, realEstateMode, suggestedScript, useClonedVoice,
+                projectId, generationStartedAt, notifyWhenDone,
+            };
+            localStorage.setItem("bs:creator", JSON.stringify(snapshot));
+        } catch {
+            // storage full or unavailable — degrade silently
+        }
+    }, [isHydrating, step, roughIdea, style, tone, refinedScript, uploadedImages,
+        videoType, portraitImageUrl, selectedIndustry, realEstateMode, suggestedScript,
+        useClonedVoice, projectId, generationStartedAt, notifyWhenDone]);
+
+    // ─── Rehydrate on mount ───────────────────────────────────────────────────
+    useEffect(() => {
+        const restore = async () => {
+            try {
+                const raw = localStorage.getItem("bs:creator");
+                if (!raw) { setIsHydrating(false); return; }
+
+                const snap = JSON.parse(raw) as {
+                    step?: number; roughIdea?: string; style?: string; tone?: string;
+                    refinedScript?: RefinedScript | null;
+                    uploadedImages?: string[]; videoType?: "person" | "product" | "property" | null;
+                    portraitImageUrl?: string | null; selectedIndustry?: string | null;
+                    realEstateMode?: boolean; suggestedScript?: string;
+                    useClonedVoice?: boolean; projectId?: string | null;
+                    generationStartedAt?: number | null; notifyWhenDone?: boolean;
+                };
+
+                // Restore notification opt-in first (used by pollStatus completion handler)
+                if (snap.notifyWhenDone) setNotifyWhenDone(true);
+
+                const savedProjectId = snap.projectId ?? null;
+                const savedStep = snap.step ?? 0;
+
+                if (savedProjectId && savedStep >= 3) {
+                    // Generation was in flight or finished — ask the server what happened.
+                    const res = await fetch(`/api/ai-video/status/${savedProjectId}`);
+
+                    if (res.status === 401 || res.status === 403 || res.status === 404) {
+                        // Different user or stale project — clear and start fresh.
+                        localStorage.removeItem("bs:creator");
+                        setIsHydrating(false);
+                        return;
+                    }
+
+                    if (res.ok) {
+                        const data = await res.json() as {
+                            status: string; error?: string | null;
+                            videoUrl?: string | null; script?: RefinedScript | null;
+                            progress?: { totalClips: number; completedClips: number; currentStage: string; clips: unknown[] };
+                        };
+
+                        setProjectId(savedProjectId);
+                        if (snap.refinedScript) setRefinedScript(snap.refinedScript);
+
+                        if (data.status === "completed" && data.videoUrl) {
+                            setGeneratedVideo(data.videoUrl);
+                            setStep(4);
+                            if (data.script) fetchCaptionsAndHashtags(data.script);
+                        } else if (data.status === "failed") {
+                            setStep(3);
+                            setGenerationError(data.error ?? "Something went wrong generating your video.");
+                        } else {
+                            // queued or processing — reconnect to the live stream
+                            setStep(3);
+                            setIsGenerating(true);
+                            if (snap.generationStartedAt) setGenerationStartedAt(snap.generationStartedAt);
+                            // Seed initial progress from the status snapshot so chips appear immediately
+                            if (data.progress) {
+                                setRenderProgress({
+                                    totalClips: data.progress.totalClips,
+                                    completedClips: data.progress.completedClips,
+                                    currentStage: data.progress.currentStage,
+                                    clips: data.progress.clips as { type: "avatar" | "broll"; label: string; status: string }[],
+                                    completedClipUrls: [],
+                                    brollClipUrls: [],
+                                });
+                            }
+                            pollStatus(savedProjectId);
+                        }
+                        setIsHydrating(false);
+                        return;
+                    }
+                }
+
+                // Draft-only restore (steps 0-2, no in-flight generation)
+                if (snap.roughIdea)       setRoughIdea(snap.roughIdea);
+                if (snap.style)           setStyle(snap.style);
+                if (snap.tone)            setTone(snap.tone);
+                if (snap.refinedScript)   setRefinedScript(snap.refinedScript);
+                if (snap.uploadedImages?.length) setUploadedImages(snap.uploadedImages);
+                if (snap.videoType)       setVideoType(snap.videoType);
+                if (snap.portraitImageUrl) setPortraitImageUrl(snap.portraitImageUrl);
+                if (snap.selectedIndustry) setSelectedIndustry(snap.selectedIndustry);
+                if (snap.realEstateMode)  setRealEstateMode(true);
+                if (snap.suggestedScript) setSuggestedScript(snap.suggestedScript);
+                if (snap.useClonedVoice)  setUseClonedVoice(true);
+                if (savedProjectId)       setProjectId(savedProjectId);
+                if (typeof savedStep === "number" && savedStep >= 0 && savedStep <= 2) setStep(savedStep);
+            } catch {
+                // Corrupt snapshot — clear it and start fresh
+                localStorage.removeItem("bs:creator");
+            } finally {
+                setIsHydrating(false);
+            }
+        };
+        restore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // mount only
+
+    // ─── Browser notification helper ──────────────────────────────────────────
+    const fireNotification = (title: string, body: string) => {
+        if (typeof window === "undefined") return;
+        if (!("Notification" in window)) return;
+        if (Notification.permission !== "granted") return;
+        try {
+            const n = new Notification(title, { body, icon: "/icon.png" });
+            n.onclick = () => { window.focus(); n.close(); };
+        } catch {
+            // Some browsers block Notification in certain contexts — degrade silently
+        }
+    };
 
     // ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -547,11 +681,13 @@ export function VideoCreator() {
                         setIsGenerating(false);
                         setStep(4);
                         if (result.script) fetchCaptionsAndHashtags(result.script);
+                        if (notifyWhenDone) fireNotification("Your video is ready", "Tap to view and publish.");
                     } else if (result.status === "failed") {
                         es.close();
                         const reason = (result as { error?: string }).error ?? "Something went wrong generating your video.";
                         setGenerationError(reason);
                         setIsGenerating(false);
+                        if (notifyWhenDone) fireNotification("Your video couldn't be generated", reason);
                     }
                 } catch {
                     // malformed event — ignore
@@ -567,6 +703,7 @@ export function VideoCreator() {
                 } else {
                     setIsGenerating(false);
                     setGenerationError("Your video is taking longer than expected. Check back in your projects — it may still be processing.");
+                        if (notifyWhenDone) fireNotification("Generation update", "Your video is taking longer than expected. Check your projects page.");
                 }
             });
 
@@ -580,6 +717,7 @@ export function VideoCreator() {
                         es.close();
                         setIsGenerating(false);
                         setGenerationError("Your video is taking longer than expected. Check back in your projects — it may still be processing.");
+                        if (notifyWhenDone) fireNotification("Generation update", "Your video is taking longer than expected. Check your projects page.");
                     }
                     return;
                 }
@@ -598,11 +736,13 @@ export function VideoCreator() {
     };
 
     const resetCreator = () => {
+        try { localStorage.removeItem("bs:creator"); } catch { /* storage unavailable */ }
         setStep(0); setRoughIdea(""); setStyle("cinematic"); setTone("professional");
         setRefinedScript(null); setUploadedImages([]); setGeneratedVideo(null);
         setProjectId(null); setSelectedIndustry(null); setAutoCaptions([]);
         setRecommendedHashtags([]); setError(null); setVideoType(null);
         setPortraitImageUrl(null); setGenerationError(null); setGenerationStartedAt(null); setElapsedSeconds(0);
+        setNotifyWhenDone(false);
         setRenderProgress({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", clips: [], completedClipUrls: [], brollClipUrls: [] });
     };
 
@@ -618,6 +758,16 @@ export function VideoCreator() {
         if (m === 0) return `${sec}s`;
         return `${m}m ${sec.toString().padStart(2, "0")}s`;
     };
+
+    // Show a minimal placeholder while we rehydrate from localStorage so the user
+    // never sees a flash of step 0 before jumping to their resumed step.
+    if (isHydrating) {
+        return (
+            <div className="w-full flex items-center justify-center py-32">
+                <Loader2 className="size-6 text-muted-foreground/30 animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="w-full px-4 py-8">
@@ -1324,18 +1474,33 @@ export function VideoCreator() {
                                             type="button"
                                             variant="ghost"
                                             onClick={() => {
-                                                if ("Notification" in window) {
-                                                    Notification.requestPermission().then(p => {
-                                                        if (p === "granted") toast.success("We'll notify you when your video is ready.");
-                                                    });
+                                                if (!("Notification" in window)) {
+                                                    toast.info("Notifications aren't supported in this browser.");
+                                                    return;
+                                                }
+                                                if (Notification.permission === "granted") {
+                                                    setNotifyWhenDone(true);
+                                                    toast.success("You'll be notified when your video is ready.");
                                                 } else {
-                                                    toast.info("Notifications not supported in this browser.");
+                                                    Notification.requestPermission().then(p => {
+                                                        if (p === "granted") {
+                                                            setNotifyWhenDone(true);
+                                                            toast.success("You'll be notified when your video is ready.");
+                                                        } else {
+                                                            toast.error("Notifications were blocked. Enable them in your browser settings and try again.");
+                                                        }
+                                                    });
                                                 }
                                             }}
-                                            className="w-full gap-2 text-xs text-muted-foreground/40 hover:text-muted-foreground/70 font-medium"
+                                            className={cn(
+                                                "w-full gap-2 text-xs font-medium transition-colors",
+                                                notifyWhenDone
+                                                    ? "text-primary hover:text-primary/80"
+                                                    : "text-muted-foreground/40 hover:text-muted-foreground/70"
+                                            )}
                                         >
                                             <Bell className="size-3.5" aria-hidden="true" />
-                                            Notify me when done
+                                            {notifyWhenDone ? "Notifications on" : "Notify me when done"}
                                         </Button>
                                     </motion.div>
                                 )}
