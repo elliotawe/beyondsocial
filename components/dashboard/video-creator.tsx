@@ -501,52 +501,83 @@ export function VideoCreator() {
     };
 
     const pollStatus = (id: string) => {
-        const es = new EventSource(`/api/ai-video/stream/${id}`);
+        // Hard client-side limit: if we're still generating after 20 minutes, something
+        // has gone wrong server-side. Stop waiting and tell the user.
+        const CLIENT_TIMEOUT_MS = 20 * 60 * 1000;
+        const startedAt = Date.now();
 
-        es.addEventListener("progress", (e) => {
-            try {
-                const result = JSON.parse(e.data);
-                if (result.progress) {
-                    setRenderProgress({
-                        totalClips: result.progress.totalClips ?? 0,
-                        completedClips: result.progress.completedClips ?? 0,
-                        currentStage: result.progress.currentStage ?? "Processing…",
-                        clips: result.progress.clips ?? [],
-                        completedClipUrls: result.progress.completedClipUrls ?? [],
-                        audioUrl: result.progress.audioUrl ?? null,
-                        avatarClipUrl: result.progress.avatarClipUrl ?? null,
-                        brollClipUrls: result.progress.brollClipUrls ?? [],
-                    });
-                }
-                if (result.status === "completed" && result.videoUrl) {
-                    es.close();
-                    setGeneratedVideo(result.videoUrl);
-                    setIsGenerating(false);
-                    setStep(4);
-                    if (result.script) fetchCaptionsAndHashtags(result.script);
-                } else if (result.status === "failed") {
-                    es.close();
-                    const reason = (result as { error?: string }).error ?? "Something went wrong generating your video.";
-                    setError(`${reason} Your credits have been refunded.`);
-                    setIsGenerating(false);
-                }
-            } catch {
-                // malformed event — ignore
-            }
-        });
+        const open = () => {
+            const es = new EventSource(`/api/ai-video/stream/${id}`);
 
-        es.addEventListener("error", (e) => {
-            const data = (e as MessageEvent).data;
-            if (!data) return; // connection drop — browser auto-reconnects, keep waiting
-            es.close();
-            setIsGenerating(false);
-            try {
-                const msg = (JSON.parse(data) as { message?: string })?.message;
-                setError(msg || "Connection lost. Please refresh and check your projects.");
-            } catch {
-                setError("Connection lost. Please refresh and check your projects.");
-            }
-        });
+            es.addEventListener("progress", (e) => {
+                try {
+                    const result = JSON.parse(e.data);
+                    if (result.progress) {
+                        setRenderProgress({
+                            totalClips: result.progress.totalClips ?? 0,
+                            completedClips: result.progress.completedClips ?? 0,
+                            currentStage: result.progress.currentStage ?? "Processing…",
+                            clips: result.progress.clips ?? [],
+                            completedClipUrls: result.progress.completedClipUrls ?? [],
+                            audioUrl: result.progress.audioUrl ?? null,
+                            avatarClipUrl: result.progress.avatarClipUrl ?? null,
+                            brollClipUrls: result.progress.brollClipUrls ?? [],
+                        });
+                    }
+                    if (result.status === "completed" && result.videoUrl) {
+                        es.close();
+                        setGeneratedVideo(result.videoUrl);
+                        setIsGenerating(false);
+                        setStep(4);
+                        if (result.script) fetchCaptionsAndHashtags(result.script);
+                    } else if (result.status === "failed") {
+                        es.close();
+                        const reason = (result as { error?: string }).error ?? "Something went wrong generating your video.";
+                        setError(`${reason} Your credits have been refunded.`);
+                        setIsGenerating(false);
+                    }
+                } catch {
+                    // malformed event — ignore
+                }
+            });
+
+            // Server sends this just before the 270s graceful close.
+            // Reconnect immediately — the job is still running.
+            es.addEventListener("reconnect", () => {
+                es.close();
+                if (Date.now() - startedAt < CLIENT_TIMEOUT_MS) {
+                    open();
+                } else {
+                    setIsGenerating(false);
+                    setError("Your video is taking longer than expected. Check back in your projects — it may still be processing.");
+                }
+            });
+
+            es.addEventListener("error", (e) => {
+                const data = (e as MessageEvent).data;
+                if (!data) {
+                    // Browser-level connection drop (network blip or Vercel hard-killed the
+                    // connection before our graceful close). EventSource auto-reconnects.
+                    // If we've been waiting too long, give up and show a message.
+                    if (Date.now() - startedAt >= CLIENT_TIMEOUT_MS) {
+                        es.close();
+                        setIsGenerating(false);
+                        setError("Your video is taking longer than expected. Check back in your projects — it may still be processing.");
+                    }
+                    return;
+                }
+                es.close();
+                setIsGenerating(false);
+                try {
+                    const msg = (JSON.parse(data) as { message?: string })?.message;
+                    setError(msg || "Something went wrong. Please check your projects page.");
+                } catch {
+                    setError("Something went wrong. Please check your projects page.");
+                }
+            });
+        };
+
+        open();
     };
 
     const resetCreator = () => {
