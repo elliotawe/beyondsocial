@@ -83,6 +83,20 @@ export async function refundCredits(
     projectId?: string
 ): Promise<void> {
     await connectDB();
+
+    // Idempotency guard: if a refund transaction already exists for this
+    // project + action, bail out. This prevents double-refunds from the
+    // top-level catch AND onFailure both running on the same failure, and
+    // from the watchdog cron refunding a project that was already refunded
+    // by an in-band handler.
+    if (projectId) {
+        const existing = await CreditTransaction.findOne({
+            projectId,
+            action: `${action}_refund`,
+        });
+        if (existing) return;
+    }
+
     const { amount, reason } = CREDIT_COSTS[action];
     const user = await User.findById(userId);
     if (!user) return;

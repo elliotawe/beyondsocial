@@ -238,6 +238,12 @@ export function VideoCreator() {
         avatarClipUrl?: string | null;
         brollClipUrls?: string[];
     }>({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", completedClipUrls: [], brollClipUrls: [] });
+    const [generationError, setGenerationError] = useState<string | null>(null);
+    const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [notifyWhenDone, setNotifyWhenDone] = useState(false);
+    // Prevents a flash of step 0 before localStorage rehydration resolves on mount.
+    const [isHydrating, setIsHydrating] = useState(true);
 
     // Check if the user has a cloned voice saved
     useEffect(() => {
@@ -248,6 +254,149 @@ export function VideoCreator() {
             })
             .catch(() => {});
     }, []);
+
+    // Elapsed timer — ticks while video is generating
+    useEffect(() => {
+        if (!isGenerating || !generationStartedAt) {
+            setElapsedSeconds(0);
+            return;
+        }
+        const id = setInterval(() => {
+            setElapsedSeconds(Math.floor((Date.now() - generationStartedAt) / 1000));
+        }, 1000);
+        return () => clearInterval(id);
+    }, [isGenerating, generationStartedAt]);
+
+    // ─── Persist draft + generation to localStorage ───────────────────────────
+    // Writes a snapshot on every relevant state change so a refresh can resume.
+    useEffect(() => {
+        if (isHydrating) return; // don't overwrite the stored snapshot before we've read it
+        try {
+            const snapshot = {
+                step, roughIdea, style, tone,
+                refinedScript, uploadedImages, videoType, portraitImageUrl,
+                selectedIndustry, realEstateMode, suggestedScript, useClonedVoice,
+                projectId, generationStartedAt, notifyWhenDone,
+            };
+            localStorage.setItem("bs:creator", JSON.stringify(snapshot));
+        } catch {
+            // storage full or unavailable — degrade silently
+        }
+    }, [isHydrating, step, roughIdea, style, tone, refinedScript, uploadedImages,
+        videoType, portraitImageUrl, selectedIndustry, realEstateMode, suggestedScript,
+        useClonedVoice, projectId, generationStartedAt, notifyWhenDone]);
+
+    // ─── Rehydrate on mount ───────────────────────────────────────────────────
+    useEffect(() => {
+        const restore = async () => {
+            try {
+                const raw = localStorage.getItem("bs:creator");
+                if (!raw) { setIsHydrating(false); return; }
+
+                const snap = JSON.parse(raw) as {
+                    step?: number; roughIdea?: string; style?: string; tone?: string;
+                    refinedScript?: RefinedScript | null;
+                    uploadedImages?: string[]; videoType?: "person" | "product" | "property" | null;
+                    portraitImageUrl?: string | null; selectedIndustry?: string | null;
+                    realEstateMode?: boolean; suggestedScript?: string;
+                    useClonedVoice?: boolean; projectId?: string | null;
+                    generationStartedAt?: number | null; notifyWhenDone?: boolean;
+                };
+
+                // Restore notification opt-in first (used by pollStatus completion handler)
+                if (snap.notifyWhenDone) setNotifyWhenDone(true);
+
+                const savedProjectId = snap.projectId ?? null;
+                const savedStep = snap.step ?? 0;
+
+                if (savedProjectId && savedStep >= 3) {
+                    // Generation was in flight or finished — ask the server what happened.
+                    const res = await fetch(`/api/ai-video/status/${savedProjectId}`);
+
+                    if (res.status === 401 || res.status === 403 || res.status === 404) {
+                        // Different user or stale project — clear and start fresh.
+                        localStorage.removeItem("bs:creator");
+                        setIsHydrating(false);
+                        return;
+                    }
+
+                    if (res.ok) {
+                        const data = await res.json() as {
+                            status: string; error?: string | null;
+                            videoUrl?: string | null; script?: RefinedScript | null;
+                            progress?: { totalClips: number; completedClips: number; currentStage: string; clips: unknown[] };
+                        };
+
+                        setProjectId(savedProjectId);
+                        if (snap.refinedScript) setRefinedScript(snap.refinedScript);
+
+                        if (data.status === "completed" && data.videoUrl) {
+                            setGeneratedVideo(data.videoUrl);
+                            setStep(4);
+                            if (data.script) fetchCaptionsAndHashtags(data.script);
+                        } else if (data.status === "failed") {
+                            setStep(3);
+                            setGenerationError(data.error ?? "Something went wrong generating your video.");
+                        } else {
+                            // queued or processing — reconnect to the live stream
+                            setStep(3);
+                            setIsGenerating(true);
+                            if (snap.generationStartedAt) setGenerationStartedAt(snap.generationStartedAt);
+                            // Seed initial progress from the status snapshot so chips appear immediately
+                            if (data.progress) {
+                                setRenderProgress({
+                                    totalClips: data.progress.totalClips,
+                                    completedClips: data.progress.completedClips,
+                                    currentStage: data.progress.currentStage,
+                                    clips: data.progress.clips as { type: "avatar" | "broll"; label: string; status: string }[],
+                                    completedClipUrls: [],
+                                    brollClipUrls: [],
+                                });
+                            }
+                            pollStatus(savedProjectId);
+                        }
+                        setIsHydrating(false);
+                        return;
+                    }
+                }
+
+                // Draft-only restore (steps 0-2, no in-flight generation)
+                if (snap.roughIdea)       setRoughIdea(snap.roughIdea);
+                if (snap.style)           setStyle(snap.style);
+                if (snap.tone)            setTone(snap.tone);
+                if (snap.refinedScript)   setRefinedScript(snap.refinedScript);
+                if (snap.uploadedImages?.length) setUploadedImages(snap.uploadedImages);
+                if (snap.videoType)       setVideoType(snap.videoType);
+                if (snap.portraitImageUrl) setPortraitImageUrl(snap.portraitImageUrl);
+                if (snap.selectedIndustry) setSelectedIndustry(snap.selectedIndustry);
+                if (snap.realEstateMode)  setRealEstateMode(true);
+                if (snap.suggestedScript) setSuggestedScript(snap.suggestedScript);
+                if (snap.useClonedVoice)  setUseClonedVoice(true);
+                if (savedProjectId)       setProjectId(savedProjectId);
+                if (typeof savedStep === "number" && savedStep >= 0 && savedStep <= 2) setStep(savedStep);
+            } catch {
+                // Corrupt snapshot — clear it and start fresh
+                localStorage.removeItem("bs:creator");
+            } finally {
+                setIsHydrating(false);
+            }
+        };
+        restore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // mount only
+
+    // ─── Browser notification helper ──────────────────────────────────────────
+    const fireNotification = (title: string, body: string) => {
+        if (typeof window === "undefined") return;
+        if (!("Notification" in window)) return;
+        if (Notification.permission !== "granted") return;
+        try {
+            const n = new Notification(title, { body, icon: "/icon.png" });
+            n.onclick = () => { window.focus(); n.close(); };
+        } catch {
+            // Some browsers block Notification in certain contexts — degrade silently
+        }
+    };
 
     // ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -438,6 +587,8 @@ export function VideoCreator() {
         if (!needsPortrait && !uploadedImages.length) return;
         if (!refinedScript || !projectId) return;
         setError(null);
+        setGenerationError(null);
+        setGenerationStartedAt(Date.now());
         setIsGenerating(true);
         try {
             const patchRes = await fetch(`/api/projects/${projectId}`, {
@@ -501,60 +652,97 @@ export function VideoCreator() {
     };
 
     const pollStatus = (id: string) => {
-        const es = new EventSource(`/api/ai-video/stream/${id}`);
+        // Hard client-side limit: if we're still generating after 20 minutes, something
+        // has gone wrong server-side. Stop waiting and tell the user.
+        const CLIENT_TIMEOUT_MS = 20 * 60 * 1000;
+        const startedAt = Date.now();
 
-        es.addEventListener("progress", (e) => {
-            try {
-                const result = JSON.parse(e.data);
-                if (result.progress) {
-                    setRenderProgress({
-                        totalClips: result.progress.totalClips ?? 0,
-                        completedClips: result.progress.completedClips ?? 0,
-                        currentStage: result.progress.currentStage ?? "Processing…",
-                        clips: result.progress.clips ?? [],
-                        completedClipUrls: result.progress.completedClipUrls ?? [],
-                        audioUrl: result.progress.audioUrl ?? null,
-                        avatarClipUrl: result.progress.avatarClipUrl ?? null,
-                        brollClipUrls: result.progress.brollClipUrls ?? [],
-                    });
-                }
-                if (result.status === "completed" && result.videoUrl) {
-                    es.close();
-                    setGeneratedVideo(result.videoUrl);
-                    setIsGenerating(false);
-                    setStep(4);
-                    if (result.script) fetchCaptionsAndHashtags(result.script);
-                } else if (result.status === "failed") {
-                    es.close();
-                    const reason = (result as { error?: string }).error ?? "Something went wrong generating your video.";
-                    setError(`${reason} Your credits have been refunded.`);
-                    setIsGenerating(false);
-                }
-            } catch {
-                // malformed event — ignore
-            }
-        });
+        const open = () => {
+            const es = new EventSource(`/api/ai-video/stream/${id}`);
 
-        es.addEventListener("error", (e) => {
-            const data = (e as MessageEvent).data;
-            if (!data) return; // connection drop — browser auto-reconnects, keep waiting
-            es.close();
-            setIsGenerating(false);
-            try {
-                const msg = (JSON.parse(data) as { message?: string })?.message;
-                setError(msg || "Connection lost. Please refresh and check your projects.");
-            } catch {
-                setError("Connection lost. Please refresh and check your projects.");
-            }
-        });
+            es.addEventListener("progress", (e) => {
+                try {
+                    const result = JSON.parse(e.data);
+                    if (result.progress) {
+                        setRenderProgress({
+                            totalClips: result.progress.totalClips ?? 0,
+                            completedClips: result.progress.completedClips ?? 0,
+                            currentStage: result.progress.currentStage ?? "Processing…",
+                            clips: result.progress.clips ?? [],
+                            completedClipUrls: result.progress.completedClipUrls ?? [],
+                            audioUrl: result.progress.audioUrl ?? null,
+                            avatarClipUrl: result.progress.avatarClipUrl ?? null,
+                            brollClipUrls: result.progress.brollClipUrls ?? [],
+                        });
+                    }
+                    if (result.status === "completed" && result.videoUrl) {
+                        es.close();
+                        setGeneratedVideo(result.videoUrl);
+                        setIsGenerating(false);
+                        setStep(4);
+                        if (result.script) fetchCaptionsAndHashtags(result.script);
+                        if (notifyWhenDone) fireNotification("Your video is ready", "Tap to view and publish.");
+                    } else if (result.status === "failed") {
+                        es.close();
+                        const reason = (result as { error?: string }).error ?? "Something went wrong generating your video.";
+                        setGenerationError(reason);
+                        setIsGenerating(false);
+                        if (notifyWhenDone) fireNotification("Your video couldn't be generated", reason);
+                    }
+                } catch {
+                    // malformed event — ignore
+                }
+            });
+
+            // Server sends this just before the 270s graceful close.
+            // Reconnect immediately — the job is still running.
+            es.addEventListener("reconnect", () => {
+                es.close();
+                if (Date.now() - startedAt < CLIENT_TIMEOUT_MS) {
+                    open();
+                } else {
+                    setIsGenerating(false);
+                    setGenerationError("Your video is taking longer than expected. Check back in your projects — it may still be processing.");
+                        if (notifyWhenDone) fireNotification("Generation update", "Your video is taking longer than expected. Check your projects page.");
+                }
+            });
+
+            es.addEventListener("error", (e) => {
+                const data = (e as MessageEvent).data;
+                if (!data) {
+                    // Browser-level connection drop (network blip or Vercel hard-killed the
+                    // connection before our graceful close). EventSource auto-reconnects.
+                    // If we've been waiting too long, give up and show a message.
+                    if (Date.now() - startedAt >= CLIENT_TIMEOUT_MS) {
+                        es.close();
+                        setIsGenerating(false);
+                        setGenerationError("Your video is taking longer than expected. Check back in your projects — it may still be processing.");
+                        if (notifyWhenDone) fireNotification("Generation update", "Your video is taking longer than expected. Check your projects page.");
+                    }
+                    return;
+                }
+                es.close();
+                setIsGenerating(false);
+                try {
+                    const msg = (JSON.parse(data) as { message?: string })?.message;
+                    setGenerationError(msg || "Something went wrong. Please check your projects.");
+                } catch {
+                    setGenerationError("Something went wrong. Please check your projects.");
+                }
+            });
+        };
+
+        open();
     };
 
     const resetCreator = () => {
+        try { localStorage.removeItem("bs:creator"); } catch { /* storage unavailable */ }
         setStep(0); setRoughIdea(""); setStyle("cinematic"); setTone("professional");
         setRefinedScript(null); setUploadedImages([]); setGeneratedVideo(null);
         setProjectId(null); setSelectedIndustry(null); setAutoCaptions([]);
         setRecommendedHashtags([]); setError(null); setVideoType(null);
-        setPortraitImageUrl(null);
+        setPortraitImageUrl(null); setGenerationError(null); setGenerationStartedAt(null); setElapsedSeconds(0);
+        setNotifyWhenDone(false);
         setRenderProgress({ totalClips: 0, completedClips: 0, currentStage: "Getting your project ready…", clips: [], completedClipUrls: [], brollClipUrls: [] });
     };
 
@@ -563,6 +751,23 @@ export function VideoCreator() {
     const progressPct = renderProgress.totalClips > 0
         ? Math.round((renderProgress.completedClips / renderProgress.totalClips) * 100)
         : 0;
+
+    const formatElapsed = (s: number) => {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        if (m === 0) return `${sec}s`;
+        return `${m}m ${sec.toString().padStart(2, "0")}s`;
+    };
+
+    // Show a minimal placeholder while we rehydrate from localStorage so the user
+    // never sees a flash of step 0 before jumping to their resumed step.
+    if (isHydrating) {
+        return (
+            <div className="w-full flex items-center justify-center py-32">
+                <Loader2 className="size-6 text-muted-foreground/30 animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="w-full px-4 py-8">
@@ -1028,167 +1233,278 @@ export function VideoCreator() {
                 {step === 3 && (
                     <motion.div key="render" variants={panelVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                         <StepRibbon currentStep={3} />
-                        <div className="py-6 max-w-lg mx-auto space-y-8">
-                            {/* Hero spinner */}
-                            <div className="flex flex-col items-center text-center space-y-5">
-                                <div className="relative" aria-hidden="true">
-                                    <div className="size-20 rounded-3xl bg-primary/10 flex items-center justify-center">
-                                        <Sparkles className="size-9 text-primary/60" />
-                                    </div>
-                                    <div className="absolute inset-0 rounded-3xl flex items-center justify-center">
-                                        <Loader2 className="size-18 text-primary/20 animate-spin" style={{ strokeWidth: 1 }} />
-                                    </div>
-                                    {!shouldReduceMotion && (
-                                        <div className="absolute -inset-2 rounded-3xl border border-primary/10 animate-pulse" />
-                                    )}
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold tracking-tight">Generating your video.</h2>
-                                    <p className="text-muted-foreground text-sm mt-1.5 leading-relaxed">Usually 2–4 minutes. You can safely close this tab —<br className="hidden sm:block" /> we&apos;ll process it in the background.</p>
-                                </div>
-                            </div>
-
-                            {/* Progress block */}
-                            <div className="rounded-2xl border border-border/40 bg-card/40 p-5 space-y-5" role="status" aria-live="polite" aria-label="Generation progress">
-                                {/* Stage label */}
-                                <div className="space-y-1">
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Current stage</span>
-                                    <p className="text-sm font-semibold text-foreground leading-snug">{renderProgress.currentStage}</p>
-                                </div>
-
-                                {/* Progress bar */}
-                                <div className="space-y-2">
-                                    <div className="h-2 w-full bg-border/30 rounded-full overflow-hidden">
-                                        {renderProgress.totalClips === 0 ? (
-                                            <motion.div
-                                                className="h-full w-1/3 bg-primary/40 rounded-full"
-                                                animate={{ x: ["0%", "200%"] }}
-                                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                                            />
-                                        ) : (
-                                            <motion.div
-                                                className="h-full bg-primary rounded-full"
-                                                animate={{ width: `${progressPct}%` }}
-                                                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                                            />
-                                        )}
-                                    </div>
-                                    {renderProgress.totalClips > 0 && (
-                                        <p className="text-[10px] text-muted-foreground/50 font-medium">
-                                            {renderProgress.completedClips} of {renderProgress.totalClips} clips done · {progressPct}%
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Voiceover ready — show audio player as soon as it's generated */}
-                                <AnimatePresence>
-                                    {renderProgress.audioUrl && (
-                                        <motion.div
-                                            key="audio-ready"
-                                            initial={{ opacity: 0, y: 6 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.25 }}
-                                            className="rounded-xl border border-green-500/20 bg-green-500/5 p-3 space-y-2"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <Check className="size-3 text-green-400 shrink-0" aria-hidden="true" />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">Voiceover ready</span>
-                                            </div>
-                                            <audio
-                                                src={renderProgress.audioUrl}
-                                                controls
-                                                className="w-full h-8"
-                                                aria-label="Generated voiceover preview"
-                                            />
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-
-                                {/* Per-clip status chips */}
-                                {(renderProgress.clips?.length ?? 0) > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {renderProgress.clips!.map((clip, i) => {
-                                            const isInQueue   = clip.status === "IN_QUEUE";
-                                            const isRendering = clip.status === "IN_PROGRESS";
-                                            const isDone      = clip.status === "COMPLETED";
-                                            const isFailed    = clip.status === "FAILED";
-                                            return (
-                                                <div
-                                                    key={i}
-                                                    className={cn(
-                                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all duration-300",
-                                                        isDone      && "bg-green-500/10 border-green-500/20 text-green-400",
-                                                        isRendering && "bg-primary/10 border-primary/20 text-primary",
-                                                        isInQueue   && "bg-muted/40 border-border/30 text-muted-foreground/50",
-                                                        isFailed    && "bg-destructive/10 border-destructive/20 text-destructive/70",
-                                                        !isDone && !isRendering && !isInQueue && !isFailed && "bg-muted/40 border-border/30 text-muted-foreground/40",
-                                                    )}
-                                                >
-                                                    {isDone      && <Check className="size-2.5" />}
-                                                    {isRendering && <Loader2 className="size-2.5 animate-spin" />}
-                                                    {isInQueue   && <span className="size-2 rounded-full bg-muted-foreground/30 inline-block" aria-hidden="true" />}
-                                                    {isFailed    && <X className="size-2.5" />}
-                                                    <span>
-                                                        {clip.label}
-                                                        {isInQueue   && clip.queuePosition != null && clip.queuePosition > 0 ? ` · #${clip.queuePosition}` :
-                                                         isInQueue   ? " · queued" :
-                                                         isRendering ? " · rendering" :
-                                                         isDone      ? " · done" :
-                                                         isFailed    ? " · failed" : ""}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                {/* Completed clips — appear as each clip finishes uploading */}
-                                {(renderProgress.completedClipUrls?.length ?? 0) > 0 && (
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
-                                            Clips ready — assembling final video
-                                        </p>
-                                        <div className="flex gap-2 flex-wrap">
-                                            {renderProgress.completedClipUrls!.map((url, i) => (
-                                                <div key={i} className="relative w-16 aspect-9/16 rounded-lg overflow-hidden bg-black border border-border/30 group">
-                                                    <video
-                                                        src={url}
-                                                        muted
-                                                        loop
-                                                        autoPlay
-                                                        playsInline
-                                                        className="w-full h-full object-cover"
-                                                        aria-label={`Clip ${i + 1} preview`}
-                                                    />
-                                                    <div className="absolute bottom-1 right-1 size-4 rounded-full bg-green-500/80 flex items-center justify-center" aria-hidden="true">
-                                                        <Check className="size-2.5 text-white" />
-                                                    </div>
-                                                </div>
-                                            ))}
+                        <div className="py-6 max-w-lg mx-auto space-y-6">
+                            <AnimatePresence mode="wait">
+                                {generationError ? (
+                                    /* ── Error state ────────────────────────────────── */
+                                    <motion.div
+                                        key="gen-error"
+                                        initial={{ opacity: 0, scale: 0.97 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                                        className="flex flex-col items-center text-center space-y-6"
+                                        role="alert"
+                                    >
+                                        <div className="size-20 rounded-3xl bg-destructive/10 flex items-center justify-center">
+                                            <AlertCircle className="size-9 text-destructive/60" />
                                         </div>
-                                    </div>
-                                )}
-                            </div>
+                                        <div className="space-y-2">
+                                            <h2 className="text-2xl font-bold tracking-tight">Generation failed</h2>
+                                            <p className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto">{generationError}</p>
+                                            <p className="text-xs text-muted-foreground/50 font-medium mt-1">Your credits have been refunded.</p>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-3 w-full">
+                                            <Button
+                                                variant="outline"
+                                                className="flex-1"
+                                                onClick={() => { setGenerationError(null); setStep(2); }}
+                                            >
+                                                Try again
+                                            </Button>
+                                            <Button
+                                                className="flex-1"
+                                                onClick={() => { window.location.href = "/dashboard/projects"; }}
+                                            >
+                                                View my projects
+                                            </Button>
+                                        </div>
+                                    </motion.div>
+                                ) : (
+                                    /* ── Generating state ───────────────────────────── */
+                                    <motion.div
+                                        key="gen-progress"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.18 }}
+                                        className="space-y-6"
+                                    >
+                                        {/* Hero */}
+                                        <div className="flex flex-col items-center text-center space-y-4">
+                                            <div className="relative" aria-hidden="true">
+                                                <div className="size-20 rounded-3xl bg-primary/10 flex items-center justify-center">
+                                                    <Sparkles className="size-9 text-primary/60" />
+                                                </div>
+                                                <div className="absolute inset-0 rounded-3xl flex items-center justify-center">
+                                                    <Loader2 className="size-18 text-primary/20 animate-spin" style={{ strokeWidth: 1 }} />
+                                                </div>
+                                                {!shouldReduceMotion && (
+                                                    <div className="absolute -inset-2 rounded-3xl border border-primary/10 animate-pulse" />
+                                                )}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center justify-center gap-2.5 mb-1.5">
+                                                    <h2 className="text-2xl font-bold tracking-tight">Creating your video</h2>
+                                                    {elapsedSeconds > 0 && (
+                                                        <span className="text-xs font-mono text-muted-foreground/40 tabular-nums">{formatElapsed(elapsedSeconds)}</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-muted-foreground text-sm leading-relaxed">
+                                                    You can close this tab — we&apos;ll keep working in the background.
+                                                </p>
+                                            </div>
+                                        </div>
 
-                            {/* Notify CTA */}
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => {
-                                    if ("Notification" in window) {
-                                        Notification.requestPermission().then(p => {
-                                            if (p === "granted") toast.success("We'll notify you when your video is ready.");
-                                        });
-                                    } else {
-                                        toast.info("Notifications not supported in this browser.");
-                                    }
-                                }}
-                                className="w-full gap-2 text-xs text-muted-foreground/40 hover:text-muted-foreground/70 font-medium"
-                            >
-                                <Bell className="size-3.5" aria-hidden="true" />
-                                Notify me when done
-                            </Button>
+                                        {/* Progress block */}
+                                        <div className="rounded-2xl border border-border/40 bg-card/40 p-5 space-y-5" role="status" aria-live="polite" aria-label="Generation progress">
+                                            {/* Animated stage label */}
+                                            <div className="space-y-1 min-h-9.5">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">What&apos;s happening</span>
+                                                <AnimatePresence mode="wait">
+                                                    <motion.p
+                                                        key={renderProgress.currentStage}
+                                                        initial={{ opacity: 0, y: 5 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: -5 }}
+                                                        transition={{ duration: 0.2, ease: "easeOut" }}
+                                                        className="text-sm font-semibold text-foreground leading-snug"
+                                                    >
+                                                        {renderProgress.currentStage}
+                                                    </motion.p>
+                                                </AnimatePresence>
+                                            </div>
+
+                                            {/* Progress bar */}
+                                            <div className="space-y-2">
+                                                <div className="h-1.5 w-full bg-border/30 rounded-full overflow-hidden">
+                                                    {renderProgress.totalClips === 0 ? (
+                                                        <motion.div
+                                                            className="h-full w-1/3 bg-primary/50 rounded-full"
+                                                            animate={{ x: ["0%", "200%"] }}
+                                                            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                                                        />
+                                                    ) : (
+                                                        <motion.div
+                                                            className="h-full bg-primary rounded-full"
+                                                            animate={{ width: `${progressPct}%` }}
+                                                            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                                                        />
+                                                    )}
+                                                </div>
+                                                {renderProgress.totalClips > 0 && (
+                                                    <p className="text-[10px] text-muted-foreground/50 font-medium">
+                                                        {renderProgress.completedClips} of {renderProgress.totalClips} clips done
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Per-clip status chips */}
+                                            <AnimatePresence>
+                                                {(renderProgress.clips?.length ?? 0) > 0 && (
+                                                    <motion.div
+                                                        key="clips"
+                                                        initial={{ opacity: 0, y: 4 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        transition={{ duration: 0.2 }}
+                                                        className="flex flex-wrap gap-2"
+                                                    >
+                                                        {renderProgress.clips!.map((clip, i) => {
+                                                            const isInQueue   = clip.status === "IN_QUEUE";
+                                                            const isRendering = clip.status === "IN_PROGRESS";
+                                                            const isDone      = clip.status === "COMPLETED";
+                                                            const isFailed    = clip.status === "FAILED";
+                                                            return (
+                                                                <motion.div
+                                                                    key={i}
+                                                                    layout
+                                                                    initial={{ opacity: 0, scale: 0.9 }}
+                                                                    animate={{ opacity: 1, scale: 1 }}
+                                                                    transition={{ duration: 0.15, delay: i * 0.04 }}
+                                                                    className={cn(
+                                                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border transition-colors duration-300",
+                                                                        isDone      && "bg-green-500/10 border-green-500/20 text-green-400",
+                                                                        isRendering && "bg-primary/10 border-primary/20 text-primary",
+                                                                        isInQueue   && "bg-muted/40 border-border/30 text-muted-foreground/50",
+                                                                        isFailed    && "bg-destructive/10 border-destructive/20 text-destructive/70",
+                                                                        !isDone && !isRendering && !isInQueue && !isFailed && "bg-muted/40 border-border/30 text-muted-foreground/40",
+                                                                    )}
+                                                                >
+                                                                    {isDone      && <Check className="size-2.5 shrink-0" />}
+                                                                    {isRendering && <Loader2 className="size-2.5 shrink-0 animate-spin" />}
+                                                                    {isInQueue   && <span className="size-2 rounded-full bg-muted-foreground/30 inline-block shrink-0" aria-hidden="true" />}
+                                                                    {isFailed    && <X className="size-2.5 shrink-0" />}
+                                                                    <span>
+                                                                        {clip.label}
+                                                                        {isInQueue && clip.queuePosition != null && clip.queuePosition > 0
+                                                                            ? ` · #${clip.queuePosition} in queue`
+                                                                            : isInQueue   ? " · queued"
+                                                                            : isRendering ? " · rendering"
+                                                                            : isDone      ? " · ready"
+                                                                            : isFailed    ? " · failed"
+                                                                            : ""}
+                                                                    </span>
+                                                                </motion.div>
+                                                            );
+                                                        })}
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
+                                            {/* Voiceover ready */}
+                                            <AnimatePresence>
+                                                {renderProgress.audioUrl && (
+                                                    <motion.div
+                                                        key="audio-ready"
+                                                        initial={{ opacity: 0, y: 6 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0 }}
+                                                        transition={{ duration: 0.25 }}
+                                                        className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <Check className="size-3 text-primary shrink-0" aria-hidden="true" />
+                                                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Voiceover ready</span>
+                                                        </div>
+                                                        <audio
+                                                            src={renderProgress.audioUrl}
+                                                            controls
+                                                            className="w-full h-8"
+                                                            aria-label="Generated voiceover preview"
+                                                        />
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
+                                            {/* Completed clip previews */}
+                                            <AnimatePresence>
+                                                {(renderProgress.completedClipUrls?.length ?? 0) > 0 && (
+                                                    <motion.div
+                                                        key="clip-previews"
+                                                        initial={{ opacity: 0, y: 6 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0 }}
+                                                        transition={{ duration: 0.25 }}
+                                                        className="space-y-2.5"
+                                                    >
+                                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                                                            Ready — assembling final video
+                                                        </p>
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            {renderProgress.completedClipUrls!.map((url, i) => (
+                                                                <motion.div
+                                                                    key={i}
+                                                                    initial={{ opacity: 0, scale: 0.85 }}
+                                                                    animate={{ opacity: 1, scale: 1 }}
+                                                                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                                                    className="relative w-14 aspect-9/16 rounded-lg overflow-hidden bg-black border border-border/30"
+                                                                >
+                                                                    <video
+                                                                        src={url}
+                                                                        muted
+                                                                        loop
+                                                                        autoPlay
+                                                                        playsInline
+                                                                        className="w-full h-full object-cover"
+                                                                        aria-label={`Clip ${i + 1} preview`}
+                                                                    />
+                                                                    <div className="absolute bottom-1 right-1 size-4 rounded-full bg-primary/80 flex items-center justify-center" aria-hidden="true">
+                                                                        <Check className="size-2.5 text-primary-foreground" />
+                                                                    </div>
+                                                                </motion.div>
+                                                            ))}
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+
+                                        {/* Notify CTA */}
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={() => {
+                                                if (!("Notification" in window)) {
+                                                    toast.info("Notifications aren't supported in this browser.");
+                                                    return;
+                                                }
+                                                if (Notification.permission === "granted") {
+                                                    setNotifyWhenDone(true);
+                                                    toast.success("You'll be notified when your video is ready.");
+                                                } else {
+                                                    Notification.requestPermission().then(p => {
+                                                        if (p === "granted") {
+                                                            setNotifyWhenDone(true);
+                                                            toast.success("You'll be notified when your video is ready.");
+                                                        } else {
+                                                            toast.error("Notifications were blocked. Enable them in your browser settings and try again.");
+                                                        }
+                                                    });
+                                                }
+                                            }}
+                                            className={cn(
+                                                "w-full gap-2 text-xs font-medium transition-colors",
+                                                notifyWhenDone
+                                                    ? "text-primary hover:text-primary/80"
+                                                    : "text-muted-foreground/40 hover:text-muted-foreground/70"
+                                            )}
+                                        >
+                                            <Bell className="size-3.5" aria-hidden="true" />
+                                            {notifyWhenDone ? "Notifications on" : "Notify me when done"}
+                                        </Button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </motion.div>
                 )}

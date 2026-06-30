@@ -13,6 +13,9 @@ const GenerateRequestSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  let creditUserId: string | null = null;
+  let creditProjectId: string | null = null;
+
   try {
     const session = await auth();
     if (!session?.user?.email) {
@@ -36,8 +39,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
+    const userId = user._id.toString();
+    creditUserId = userId;
     const creditResult = await deductCredits(
-      user._id.toString(),
+      userId,
       "video_generation"
     );
     if (!creditResult.success) {
@@ -67,6 +72,8 @@ export async function POST(req: NextRequest) {
         status: "queued",
       });
     }
+    // Track the project id so the outer catch can refund if something throws below.
+    creditProjectId = project._id.toString();
 
     const images: string[] = project.uploadedImages ?? [];
     const videoType: "person" | "product" | "property" = (project.videoType as "person" | "product" | "property") ?? "person";
@@ -138,6 +145,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("[API Generate] Error:", error);
+    // If credits were deducted before the error, refund them. refundCredits is
+    // idempotent — safe to call even if a more specific handler already refunded.
+    if (creditUserId) {
+      try {
+        await refundCredits(creditUserId, "video_generation", creditProjectId ?? undefined);
+      } catch (refundErr) {
+        console.error("[API Generate] Refund after error also threw:", refundErr);
+      }
+    }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

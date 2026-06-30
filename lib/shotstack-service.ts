@@ -322,7 +322,10 @@ export async function getShotstackStatus(renderId: string): Promise<{
 }> {
   const { baseUrl, headers } = shotstackHeaders();
 
-  const res = await fetch(`${baseUrl}/render/${renderId}`, { headers });
+  const res = await fetch(`${baseUrl}/render/${renderId}`, {
+    headers,
+    signal: AbortSignal.timeout(15_000),
+  });
   if (!res.ok) throw new Error("Failed to fetch Shotstack render status");
 
   const data = await res.json();

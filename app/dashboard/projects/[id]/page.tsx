@@ -32,6 +32,9 @@ interface LiveProgress {
     currentStage: string;
     clips: { type: "avatar" | "broll"; label: string; status: string; queuePosition?: number }[];
     completedClipUrls: string[];
+    audioUrl?: string | null;
+    avatarClipUrl?: string | null;
+    brollClipUrls?: string[];
 }
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -72,6 +75,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     currentStage: result.progress.currentStage ?? "Processing…",
                                     clips: result.progress.clips ?? [],
                                     completedClipUrls: result.progress.completedClipUrls ?? [],
+                                    audioUrl: result.progress.audioUrl ?? null,
+                                    avatarClipUrl: result.progress.avatarClipUrl ?? null,
+                                    brollClipUrls: result.progress.brollClipUrls ?? [],
                                 });
                             }
                             if (result.status === "completed" && result.videoUrl) {
@@ -229,13 +235,29 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                     )}
 
+                    {liveProgress.audioUrl && (
+                        <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-3 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                                <Check className="size-3 text-green-400 shrink-0" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">Voiceover ready</span>
+                            </div>
+                            <audio src={liveProgress.audioUrl} controls className="w-full h-8" aria-label="Generated voiceover preview" />
+                        </div>
+                    )}
+
                     {liveProgress.completedClipUrls.length > 0 && (
                         <div className="space-y-2">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Clips ready — composing final video</p>
-                            <div className="flex gap-2 flex-wrap">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Clips ready — assembling final video</p>
+                            <div className="flex gap-3 flex-wrap">
                                 {liveProgress.completedClipUrls.map((url, i) => (
-                                    <div key={i} className="relative w-14 aspect-9/16 rounded-lg overflow-hidden bg-black border border-border/30">
-                                        <video src={url} muted loop autoPlay playsInline className="w-full h-full object-cover" />
+                                    <div key={i} className="space-y-1.5">
+                                        <div className="relative w-14 aspect-9/16 rounded-lg overflow-hidden bg-black border border-border/30">
+                                            <video src={url} muted loop autoPlay playsInline className="w-full h-full object-cover" />
+                                            <div className="absolute bottom-1 right-1 size-3.5 rounded-full bg-green-500/80 flex items-center justify-center">
+                                                <Check className="size-2 text-white" />
+                                            </div>
+                                        </div>
+                                        <p className="text-[8px] font-bold text-muted-foreground/40 text-center uppercase tracking-wide">Clip {i + 1}</p>
                                     </div>
                                 ))}
                             </div>
@@ -272,7 +294,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                                 </div>
                                                 <div className="space-y-2">
                                                     <p className="text-white font-bold text-lg">Generating Content</p>
-                                                    <p className="text-sm opacity-60">Aurora · Kling 2.5 · Shotstack is rendering your video...</p>
+                                                    <p className="text-sm opacity-60">Creating your clips and assembling the final video…</p>
                                                 </div>
                                                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                                                     <div className="h-full bg-primary w-2/3 animate-[shimmer_2s_infinite]" />
@@ -297,8 +319,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 <p className="font-bold ">Vertical (9:16)</p>
                             </div>
                             <div className="p-4 rounded-[28px] bg-card/40 border border-border/40 backdrop-blur-sm text-center space-y-1">
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Engine</p>
-                                <p className="font-bold ">Aurora + Kling 2.5</p>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Quality</p>
+                                <p className="font-bold ">AI · 1080p</p>
                             </div>
                         </div>
                     </div>
@@ -320,6 +342,38 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 initialPlatforms={project.socialPlatforms}
                                 socialStatus={project.socialStatus}
                             />
+                        </div>
+                    )}
+
+                    {/* Partial clips — visible from the project page even mid-generation */}
+                    {isProcessing && (project.avatarClipUrl || (project.brollClipUrls?.length ?? 0) > 0) && !liveProgress && (
+                        <div className="rounded-2xl border border-border/40 bg-card/40 p-5 space-y-3 animate-in fade-in duration-500">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Clips generated so far</p>
+                            <div className="flex gap-3 flex-wrap">
+                                {project.avatarClipUrl && (
+                                    <div className="space-y-1.5">
+                                        <div className="relative w-20 aspect-9/16 rounded-xl overflow-hidden bg-black border border-border/30">
+                                            <video src={project.avatarClipUrl} muted loop autoPlay playsInline className="w-full h-full object-cover" />
+                                            <div className="absolute bottom-1 right-1 size-4 rounded-full bg-green-500/80 flex items-center justify-center">
+                                                <Check className="size-2.5 text-white" />
+                                            </div>
+                                        </div>
+                                        <p className="text-[9px] font-bold text-muted-foreground/50 text-center uppercase tracking-wide">Presenter</p>
+                                    </div>
+                                )}
+                                {project.brollClipUrls?.map((url, i) => (
+                                    <div key={i} className="space-y-1.5">
+                                        <div className="relative w-20 aspect-9/16 rounded-xl overflow-hidden bg-black border border-border/30">
+                                            <video src={url} muted loop autoPlay playsInline className="w-full h-full object-cover" />
+                                            <div className="absolute bottom-1 right-1 size-4 rounded-full bg-green-500/80 flex items-center justify-center">
+                                                <Check className="size-2.5 text-white" />
+                                            </div>
+                                        </div>
+                                        <p className="text-[9px] font-bold text-muted-foreground/50 text-center uppercase tracking-wide">Scene {i + 1}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground/30">Final video is still being assembled — check back shortly.</p>
                         </div>
                     )}
 

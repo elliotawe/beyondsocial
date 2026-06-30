@@ -115,6 +115,36 @@ export const generatePremiumVideo = inngest.createFunction(
     // retries: 0 because waitForEvent consumes events — replaying a retry would miss them.
     retries: 0,
     triggers: [{ event: "video/generate.requested" }],
+    // onFailure runs in a separate Vercel invocation after the function fails.
+    // This is the safety net for when a Vercel timeout kills the process before the
+    // main try/catch gets to run — without this the project stays stuck at "processing".
+    onFailure: async ({ event, error }) => {
+      const originalEvent = (event as unknown as { data: { event: { data: GenerateRequestedData } } })
+        .data.event;
+      const { projectId, userId } = originalEvent.data;
+      const rawMsg = error instanceof Error ? error.message : String(error);
+      const userMsg = friendlyError(rawMsg);
+
+      // Retry the DB write up to 3 times — a transient Mongo blip in onFailure
+      // would otherwise silently leave the project stuck at "processing".
+      let lastErr: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await connectDB();
+          await Project.findByIdAndUpdate(projectId, {
+            status: "failed",
+            error: userMsg,
+          });
+          // refundCredits is idempotent — safe to retry; early-exits if already refunded.
+          await refundCredits(userId, "video_generation", projectId);
+          return; // success
+        } catch (cleanupErr) {
+          lastErr = cleanupErr;
+          console.warn(`[Inngest][${projectId}] onFailure attempt ${attempt + 1} threw:`, cleanupErr);
+        }
+      }
+      console.error(`[Inngest][${projectId}] onFailure gave up after 3 attempts:`, lastErr);
+    },
   },
   async ({ event, step }) => {
     const {
@@ -173,6 +203,9 @@ export const generatePremiumVideo = inngest.createFunction(
             ? await generateAudioWithClonedVoice(clonedVoiceUrl!, scenePlan.fullVoiceoverScript)
             : await generateAndUploadAudio(scenePlan.fullVoiceoverScript, voice ?? "nova");
           console.log(`[Inngest][${projectId}] Step 3a ✓ audioUrl=${url}`);
+          // Write immediately so the SSE stream can surface the voiceover to the user
+          await connectDB();
+          await Job.findByIdAndUpdate(jobId, { audioUrl: url });
           return url;
         });
 
@@ -372,6 +405,12 @@ export const generatePremiumVideo = inngest.createFunction(
                   $push: { completedClipUrls: url },
                   $inc: { completedClips: 1 },
                 });
+                // Write to Project immediately so the project page shows partial clips before completion
+                if (clip.type === "avatar") {
+                  await Project.findByIdAndUpdate(projectId, { avatarClipUrl: url });
+                } else {
+                  await Project.findByIdAndUpdate(projectId, { $push: { brollClipUrls: url } });
+                }
                 return { cloudinaryUrl: url, type: clip.type, order: clip.order, durationSeconds: clip.durationSeconds } as ResolvedClip;
               } catch (uploadErr) {
                 console.error(`[Inngest][${projectId}] Cloudinary upload failed for ${clip.type} order=${clip.order}:`, uploadErr);
@@ -449,10 +488,16 @@ export const generatePremiumVideo = inngest.createFunction(
         }
 
         // STEP 8: Upload final composed video to Cloudinary (not just Shotstack CDN).
-        // FIX 8: try/catch — if Cloudinary fails here (after the Shotstack wait has resolved),
-        // with retries:0 there is no recovery. Fall back to the raw Shotstack URL so the video
-        // is still accessible (for up to 24h per Shotstack's stage policy) rather than losing it.
+        // Pre-flight: write the temporary Shotstack URL so the project is recoverable
+        // if the Cloudinary upload step is killed by the platform (retries:0 = no recovery).
+        // persist-result overwrites this with the permanent Cloudinary URL on success.
+        await step.run("preflight-store-shotstack-url", async () => {
+          await connectDB();
+          await Project.findByIdAndUpdate(projectId, { videoUrl: shotstackVideoUrl });
+        });
+
         const finalVideoUrl = await step.run("upload-final-to-cloudinary", async () => {
+          await connectDB();
           console.log(`[Inngest][${projectId}] Step 8: uploading final video to Cloudinary`);
           try {
             const uploaded = await cloudinaryService.uploadVideo(shotstackVideoUrl!, {
@@ -507,6 +552,8 @@ export const generatePremiumVideo = inngest.createFunction(
             ? await generateAudioWithClonedVoice(clonedVoiceUrl!, scenePlan.fullVoiceoverScript)
             : await generateAndUploadAudio(scenePlan.fullVoiceoverScript, voice ?? "nova");
           console.log(`[Inngest][${projectId}] Step 3b ✓ audioUrl=${url}`);
+          await connectDB();
+          await Job.findByIdAndUpdate(jobId, { audioUrl: url });
           return url;
         });
 
@@ -612,6 +659,8 @@ export const generatePremiumVideo = inngest.createFunction(
                     $push: { completedClipUrls: url },
                     $inc: { completedClips: 1 },
                   });
+                  // Write to Project immediately so the project page shows partial clips
+                  await Project.findByIdAndUpdate(projectId, { $push: { brollClipUrls: url } });
                   return { cloudinaryUrl: url, order: clip.order, durationSeconds: clip.durationSeconds };
                 } catch (uploadErr) {
                   console.error(`[Inngest][${projectId}] Cloudinary upload failed for product broll order=${clip.order}:`, uploadErr);
@@ -685,8 +734,14 @@ export const generatePremiumVideo = inngest.createFunction(
         }
 
         // Upload final composed video to Cloudinary
-        // FIX 8: try/catch with Shotstack URL fallback — same reasoning as person path.
+        // Pre-flight: same as person path — store temporary Shotstack URL for recoverability.
+        await step.run("preflight-store-shotstack-url-product", async () => {
+          await connectDB();
+          await Project.findByIdAndUpdate(projectId, { videoUrl: productShotstackUrl });
+        });
+
         const finalProductUrl = await step.run("upload-final-to-cloudinary-product", async () => {
+          await connectDB();
           console.log(`[Inngest][${projectId}] Step 8b: uploading final product video to Cloudinary`);
           try {
             const uploaded = await cloudinaryService.uploadVideo(productShotstackUrl!, {

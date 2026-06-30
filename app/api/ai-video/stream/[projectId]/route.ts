@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-export const maxDuration = 300; // 5 minutes — Vercel Pro max, reduces reconnection frequency
+export const maxDuration = 300;
 import { fal } from "@fal-ai/client";
 import connectDB from "@/lib/db";
 import { Project } from "@/models/Project";
@@ -40,8 +40,6 @@ async function safeGetFalStatus(
   }
 }
 
-// Only fetches status for clips not yet counted as done in the DB.
-// Clips whose index falls below completedClips are short-circuited as COMPLETED.
 async function getLiveClipStatuses(
   job: {
     avatarRequestId?: string;
@@ -57,17 +55,16 @@ async function getLiveClipStatuses(
 
   const tasks: Promise<ClipLiveStatus>[] = [];
 
-  // Avatar is index 0 — skip fal.ai call if already counted done
   if (job.avatarRequestId) {
     if (completedClips >= 1) {
       tasks.push(
-        Promise.resolve({ type: "avatar" as const, label: "Avatar", status: "COMPLETED" as const })
+        Promise.resolve({ type: "avatar" as const, label: "Presenter clip", status: "COMPLETED" as const })
       );
     } else {
       tasks.push(
         safeGetFalStatus(avatarModel, job.avatarRequestId).then((s) => ({
           type: "avatar" as const,
-          label: "Avatar",
+          label: "Presenter clip",
           ...s,
         }))
       );
@@ -77,16 +74,14 @@ async function getLiveClipStatuses(
   const brollIds = job.brollRequestIds ?? [];
   for (let i = 0; i < brollIds.length; i++) {
     const rid = brollIds[i];
-    // Clip index in the overall sequence is i + 1 (avatar is 0)
     const clipIndex = i + 1;
-    const label = `Scene ${i + 1}`;
+    const label = `Visual scene ${i + 1}`;
 
     if (!rid || rid === "FAILED") {
       tasks.push(
         Promise.resolve({ type: "broll" as const, label, status: "FAILED" as const })
       );
     } else if (completedClips > clipIndex) {
-      // Already confirmed done by DB
       tasks.push(
         Promise.resolve({ type: "broll" as const, label, status: "COMPLETED" as const })
       );
@@ -108,14 +103,18 @@ function humanStage(
   projectStatus: ProjectStatus,
   clips: ClipLiveStatus[],
   totalClips: number,
-  completedClips: number
+  completedClips: number,
+  hasAudio: boolean
 ): string {
   if (projectStatus === "queued") return "Getting your project ready…";
   if (projectStatus === "completed") return "Done";
   if (projectStatus === "failed") return "Failed";
-  if (totalClips === 0) return "Planning your scenes…";
-  if (completedClips >= totalClips) return "All clips ready — composing your final video…";
-  if (clips.length === 0) return "Sending clips to AI — waiting for confirmation…";
+  if (totalClips === 0) {
+    if (hasAudio) return "Voiceover ready — generating your video clips now…";
+    return "Planning your scenes and creating your voiceover…";
+  }
+  if (completedClips >= totalClips) return "All clips ready — assembling your final video…";
+  if (clips.length === 0) return "Sending clips to render — waiting for confirmation…";
 
   const avatar = clips.find((c) => c.type === "avatar");
   const brolls = clips.filter((c) => c.type === "broll");
@@ -124,10 +123,10 @@ function humanStage(
     if (avatar.status === "IN_QUEUE") {
       const pos = avatar.queuePosition;
       return pos != null && pos > 0
-        ? `Your talking-head avatar is in the render queue (position ${pos})…`
-        : "Your talking-head avatar is queued for rendering…";
+        ? `Your presenter clip is in the render queue (position ${pos})…`
+        : "Your presenter clip is queued for rendering…";
     }
-    return "Your avatar is rendering now — hang tight…";
+    return "Rendering your presenter clip — hang tight…";
   }
 
   const pendingBrolls = brolls.filter(
@@ -137,12 +136,12 @@ function humanStage(
   if (pendingBrolls.length > 0) {
     const pendingNames = pendingBrolls.map((c) => c.label).join(", ");
     if (completedClips === 0) {
-      return `Rendering ${pendingBrolls.length} b-roll scene${pendingBrolls.length > 1 ? "s" : ""} (${pendingNames})…`;
+      return `Generating ${pendingBrolls.length} visual scene${pendingBrolls.length > 1 ? "s" : ""} (${pendingNames})…`;
     }
     return `${completedClips} of ${totalClips} clips done — still rendering ${pendingNames}…`;
   }
 
-  if (completedClips > 0) return `${completedClips} of ${totalClips} clips done — composing…`;
+  if (completedClips > 0) return `${completedClips} of ${totalClips} clips done — assembling final video…`;
   return "Generating your video clips…";
 }
 
@@ -157,7 +156,6 @@ export async function GET(
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Establish DB connection once — Mongoose caches it for the lifetime of the stream
   await connectDB();
 
   const user = await User.findOne({ email: session.user.email }).lean() as {
@@ -186,7 +184,9 @@ export async function GET(
   }
 
   const POLL_INTERVAL_MS = 4000;
-  const MAX_DURATION_MS = 25 * 60 * 1000;
+  // Stay well under Vercel's 300s function limit. The client EventSource auto-reconnects
+  // and will pick up where it left off on the next connection.
+  const MAX_DURATION_MS = 270_000;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -203,22 +203,24 @@ export async function GET(
       let done = false;
 
       while (!done) {
-        // Fix 2: stop immediately when the client closes the connection
         if (req.signal.aborted) break;
 
         if (Date.now() - startTime > MAX_DURATION_MS) {
-          push("error", { message: "Stream timed out after 25 minutes." });
+          // Graceful close before Vercel's hard kill. Send a reconnect hint so the
+          // client knows this is a normal rotation, not a job failure.
+          push("reconnect", {});
           break;
         }
 
         try {
-          // No connectDB() here — connection established once before the stream opened
           const project = await Project.findById(projectId).lean() as {
             status: ProjectStatus;
             videoUrl?: string;
             generatedVideoUrl?: string;
             script?: unknown;
             error?: string;
+            avatarClipUrl?: string;
+            brollClipUrls?: string[];
           } | null;
 
           if (!project) {
@@ -232,12 +234,13 @@ export async function GET(
             completedClipUrls?: string[];
             avatarRequestId?: string;
             brollRequestIds?: string[];
+            audioUrl?: string;
           } | null;
 
           const totalClips = job?.totalClips ?? 0;
           const completedClips = job?.completedClips ?? 0;
+          const hasAudio = !!(job?.audioUrl);
 
-          // Fix 3: pass completedClips so already-done clips skip fal.ai status calls
           let liveClips: ClipLiveStatus[] = [];
           if (
             project.status === "processing" &&
@@ -252,7 +255,8 @@ export async function GET(
             project.status,
             liveClips,
             totalClips,
-            completedClips
+            completedClips,
+            hasAudio
           );
 
           push("progress", {
@@ -266,6 +270,9 @@ export async function GET(
               currentStage,
               clips: liveClips,
               completedClipUrls: job?.completedClipUrls ?? [],
+              audioUrl: job?.audioUrl ?? null,
+              avatarClipUrl: project.avatarClipUrl ?? null,
+              brollClipUrls: project.brollClipUrls ?? [],
             },
           });
 
@@ -278,9 +285,8 @@ export async function GET(
           push("error", { message: "Internal error reading status." });
         }
 
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve) => {
           const t = setTimeout(resolve, POLL_INTERVAL_MS);
-          // Also wake up early if client disconnects during the sleep
           req.signal.addEventListener("abort", () => {
             clearTimeout(t);
             resolve();

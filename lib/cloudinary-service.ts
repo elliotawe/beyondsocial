@@ -18,12 +18,14 @@ export interface CloudinaryUploadResponse {
 }
 
 /**
- * Uploads a video from a remote URL to Cloudinary and returns the permanent secure URL.
+ * Uploads a video to Cloudinary and returns the permanent secure URL.
  *
- * Pass `large: true` for the final composed video (can exceed 100 MB on some plans).
- * upload_large() sends the file in 20 MB chunks and is safe for smaller files too.
- * Plain upload() is kept for individual clips (typically <50 MB) with a raised timeout
- * to handle slow remote fetches from fal.ai's CDN.
+ * Always uses upload() with the remote URL — Cloudinary's API fetches the file
+ * server-to-server, so no video data passes through Vercel. This avoids the
+ * memory pressure and Vercel timeout that upload_large() caused when it downloaded
+ * the full file into the serverless function before chunking.
+ *
+ * The 100 MB cap on upload() applies only to direct (body) uploads, not URL fetches.
  */
 export async function uploadVideo(
     videoUrl: string,
@@ -32,53 +34,26 @@ export async function uploadVideo(
         publicId?: string;
         tags?: string[];
         metadata?: Record<string, string>;
-        large?: boolean;   // FIX 6: use upload_large() for final composed video
+        large?: boolean; // kept for API compatibility; no longer changes behaviour
     } = {}
 ): Promise<CloudinaryUploadResponse> {
-    const { large = false, ...rest } = options;
+    const { large: _large, ...rest } = options;
 
     try {
-        console.log(`[Cloudinary] Starting ${large ? "chunked" : "standard"} video upload from: ${videoUrl}`);
+        console.log(`[Cloudinary] Uploading video via remote fetch: ${videoUrl}`);
 
-        let uploadResponse: CloudinaryUploadResponse;
+        const uploadResponse = await cloudinary.uploader.upload(videoUrl, {
+            folder: rest.folder || "beyond-social/videos",
+            public_id: rest.publicId,
+            resource_type: "video",
+            tags: rest.tags || [],
+            context: rest.metadata || {},
+            // Give Cloudinary's servers up to 4 minutes to fetch and process the file.
+            // Their fetch is server-to-server so this is conservative.
+            timeout: 240_000,
+        }) as CloudinaryUploadResponse;
 
-        if (large) {
-            // FIX 6: upload_large() for the final Shotstack-composed video.
-            // Composed 1080×1920 MP4s at 30-60s can approach or exceed 100 MB —
-            // upload_large() chunks the transfer and avoids the 100 MB hard cap.
-            // Read secure_url from the final response only (intermediate chunks have done:false).
-            uploadResponse = await new Promise<CloudinaryUploadResponse>((resolve, reject) => {
-                cloudinary.uploader.upload_large(
-                    videoUrl,
-                    {
-                        folder: rest.folder || "beyond-social/videos",
-                        public_id: rest.publicId,
-                        resource_type: "video",
-                        tags: rest.tags || [],
-                        context: rest.metadata || {},
-                        chunk_size: 20_000_000,  // 20 MB chunks (Cloudinary minimum is 5 MB)
-                        timeout: 120_000,        // 2 min — large uploads take longer to ingest
-                    },
-                    (error, result) => {
-                        if (error || !result) return reject(error ?? new Error("No result from upload_large"));
-                        resolve(result as CloudinaryUploadResponse);
-                    }
-                );
-            });
-        } else {
-            // Standard upload for individual clips (avatar, b-roll) — usually <50 MB.
-            // Raised timeout to 90s to handle slow fetches from fal.ai's CDN.
-            uploadResponse = await cloudinary.uploader.upload(videoUrl, {
-                folder: rest.folder || "beyond-social/videos",
-                public_id: rest.publicId,
-                resource_type: "video",
-                tags: rest.tags || [],
-                context: rest.metadata || {},
-                timeout: 90_000,
-            }) as CloudinaryUploadResponse;
-        }
-
-        console.log(`[Cloudinary] Successfully uploaded video. Secure URL: ${uploadResponse.secure_url}`);
+        console.log(`[Cloudinary] Upload complete. URL: ${uploadResponse.secure_url}`);
         return uploadResponse;
     } catch (error) {
         console.error("[Cloudinary] Video upload failed:", error);
