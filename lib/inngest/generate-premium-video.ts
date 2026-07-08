@@ -40,6 +40,7 @@ interface ClipCompletedData {
 
 interface ShotstackCompletedData {
   projectId: string;
+  renderId: string;
   videoUrl?: string;
   error?: boolean;
 }
@@ -67,43 +68,69 @@ function isDevMode(): boolean {
 const AVATAR_MODEL = () => process.env.CREATIFY_AURORA_MODEL ?? "fal-ai/creatify/aurora";
 const BROLL_MODEL = () => process.env.KLING_MODEL ?? "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
 
-// ─── Shotstack fallback poll ──────────────────────────────────────────────────
-// Called when the Shotstack webhook is missed (unreachable URL or network blip).
-// Uses step.sleep so the Inngest function stays durable across the poll window.
-async function shotstackFallbackPoll(
-  step: Parameters<Parameters<typeof inngest.createFunction>[1]>[0]["step"],
-  renderId: string,
-  maxAttempts = 20
-): Promise<string | null> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    await step.sleep(`shotstack-poll-sleep-${attempt}`, "30s");
-    const pollResult = await step.run(`shotstack-poll-${attempt}`, async () => {
-      await connectDB();
-      return getShotstackStatus(renderId);
+type InngestStep = Parameters<Parameters<typeof inngest.createFunction>[1]>[0]["step"];
+
+// ─── Clip resolution — webhook fast-path raced against a short poll loop ─────
+// Does NOT depend on the webhook ever arriving: each iteration waits at most
+// `intervalSec` for the "video/clip.completed" event, then falls back to
+// polling fal.ai directly. Whichever answers first wins. This bounds detection
+// latency to ~intervalSec even if the inbound webhook is blocked entirely
+// (e.g. Vercel Deployment Protection), instead of waiting out a 15m timeout.
+async function resolveClipUrl(
+  step: InngestStep,
+  params: {
+    model: string;
+    requestId: string;
+    projectId: string;
+    matchKey: string;
+    maxMinutes?: number;
+    intervalSec?: number;
+  }
+): Promise<string | "FAILED" | null> {
+  const { model, requestId, projectId, matchKey, maxMinutes = 15, intervalSec = 20 } = params;
+  const attempts = Math.ceil((maxMinutes * 60) / intervalSec);
+
+  for (let i = 0; i < attempts; i++) {
+    const ev = await step.waitForEvent(`${matchKey}-wait-${i}`, {
+      event: "video/clip.completed",
+      if: `async.data.projectId == "${projectId}" && async.data.requestId == "${requestId}"`,
+      timeout: `${intervalSec}s`,
     });
-    if (pollResult.status === "done" && pollResult.url) return pollResult.url;
-    if (pollResult.status === "failed") return null;
+    if (ev) {
+      const data = ev.data as ClipCompletedData;
+      return data.error || !data.rawVideoUrl ? "FAILED" : data.rawVideoUrl;
+    }
+    const polled = await step.run(`${matchKey}-poll-${i}`, () => pollFalJobOnce(model, requestId));
+    if (polled === "FAILED") return "FAILED";
+    if (polled) return polled;
   }
   return null;
 }
 
-// ─── fal.ai fallback poll ─────────────────────────────────────────────────────
-// Called when a clip's webhook event times out in production.
-// Polls fal.ai directly with step.sleep between attempts.
-async function falFallbackPoll(
-  step: Parameters<Parameters<typeof inngest.createFunction>[1]>[0]["step"],
-  model: string,
-  requestId: string,
-  stepPrefix: string,
-  maxAttempts = 10
-): Promise<string | null> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    await step.sleep(`${stepPrefix}-sleep-${attempt}`, "30s");
-    const result = await step.run(`${stepPrefix}-check-${attempt}`, async () => {
-      return pollFalJobOnce(model, requestId);
+// ─── Shotstack render resolution — same webhook-race-poll pattern ────────────
+async function resolveRenderUrl(
+  step: InngestStep,
+  params: { renderId: string; matchKey: string; maxMinutes?: number; intervalSec?: number }
+): Promise<string | "FAILED" | null> {
+  const { renderId, matchKey, maxMinutes = 10, intervalSec = 20 } = params;
+  const attempts = Math.ceil((maxMinutes * 60) / intervalSec);
+
+  for (let i = 0; i < attempts; i++) {
+    const ev = await step.waitForEvent(`${matchKey}-wait-${i}`, {
+      event: "video/shotstack.completed",
+      if: `async.data.renderId == "${renderId}"`,
+      timeout: `${intervalSec}s`,
     });
-    if (result && result !== "FAILED") return result;
-    if (result === "FAILED") return null;
+    if (ev) {
+      const data = ev.data as ShotstackCompletedData;
+      return data.error || !data.videoUrl ? "FAILED" : data.videoUrl;
+    }
+    const polled = await step.run(`${matchKey}-poll-${i}`, async () => {
+      await connectDB();
+      return getShotstackStatus(renderId);
+    });
+    if (polled.status === "failed") return "FAILED";
+    if (polled.status === "done" && polled.url) return polled.url;
   }
   return null;
 }
@@ -295,69 +322,50 @@ export const generatePremiumVideo = inngest.createFunction(
             }
           }
         } else {
-          // Prod mode: wait for all webhook events in parallel, each matched by requestId.
-          // This is safe regardless of delivery order — each event is routed to its own step.
+          // Prod mode: resolve all clips in parallel. Each clip races a short webhook
+          // wait against a direct fal poll every interval, so completion is detected
+          // within ~20-30s even if the inbound webhook never arrives.
           const webhookBrollSubmits = brollSubmits.filter(bs => bs.mode === "webhook") as Array<{
             mode: "webhook"; requestId: string; order: number; durationSeconds: number;
           }>;
           const avatarReqId = (avatarSubmit as { mode: "webhook"; requestId: string }).requestId;
 
-          const [avatarEvent, ...brollEvents] = await Promise.all([
-            step.waitForEvent("clip-avatar", {
-              event: "video/clip.completed",
-              if: `async.data.projectId == "${projectId}" && async.data.requestId == "${avatarReqId}"`,
-              timeout: "15m",
+          const [avatarUrl, ...brollUrls] = await Promise.all([
+            resolveClipUrl(step, {
+              model: AVATAR_MODEL(),
+              requestId: avatarReqId,
+              projectId,
+              matchKey: "clip-avatar",
             }),
             ...webhookBrollSubmits.map(bs =>
-              step.waitForEvent(`clip-broll-${bs.order}`, {
-                event: "video/clip.completed",
-                if: `async.data.projectId == "${projectId}" && async.data.requestId == "${bs.requestId}"`,
-                timeout: "15m",
+              resolveClipUrl(step, {
+                model: BROLL_MODEL(),
+                requestId: bs.requestId,
+                projectId,
+                matchKey: `clip-broll-${bs.order}`,
               })
             ),
           ]);
 
           // Handle avatar result
-          if (!avatarEvent) {
-            console.warn(`[Inngest][${projectId}] Avatar webhook timed out — trying fallback poll`);
-            const url = await falFallbackPoll(step, AVATAR_MODEL(), avatarReqId, "fal-fallback-avatar");
-            if (!url) {
-              await step.run("handle-avatar-timeout", async () => {
-                await connectDB();
-                await refundCredits(userId, "video_generation", projectId);
-                await Project.findByIdAndUpdate(projectId, { status: "failed", error: "Avatar clip generation timed out." });
-                await Job.findByIdAndUpdate(jobId, { status: "failed" });
-              });
-              return;
-            }
-            rawClips.push({ rawUrl: url, type: "avatar", order: 0, durationSeconds: scenePlan.totalDurationSeconds });
-          } else {
-            const avatarData = avatarEvent.data as ClipCompletedData;
-            if (avatarData.error || !avatarData.rawVideoUrl) {
-              await step.run("handle-avatar-failure", async () => {
-                await connectDB();
-                await refundCredits(userId, "video_generation", projectId);
-                await Project.findByIdAndUpdate(projectId, { status: "failed", error: "Avatar clip generation failed." });
-                await Job.findByIdAndUpdate(jobId, { status: "failed" });
-              });
-              return;
-            }
-            rawClips.push({ rawUrl: avatarData.rawVideoUrl, type: "avatar", order: 0, durationSeconds: scenePlan.totalDurationSeconds });
+          if (!avatarUrl || avatarUrl === "FAILED") {
+            const msg = avatarUrl === "FAILED" ? "Avatar clip generation failed." : "Avatar clip generation timed out.";
+            await step.run("handle-avatar-failure", async () => {
+              await connectDB();
+              await refundCredits(userId, "video_generation", projectId);
+              await Project.findByIdAndUpdate(projectId, { status: "failed", error: msg });
+              await Job.findByIdAndUpdate(jobId, { status: "failed" });
+            });
+            return;
           }
+          rawClips.push({ rawUrl: avatarUrl, type: "avatar", order: 0, durationSeconds: scenePlan.totalDurationSeconds });
 
           // Handle b-roll results
           for (let i = 0; i < webhookBrollSubmits.length; i++) {
             const bs = webhookBrollSubmits[i];
-            const ev = brollEvents[i];
-            if (!ev) {
-              console.warn(`[Inngest][${projectId}] B-roll order=${bs.order} timed out — trying fallback poll`);
-              const url = await falFallbackPoll(step, BROLL_MODEL(), bs.requestId, `fal-fallback-broll-${bs.order}`);
-              if (url) rawClips.push({ rawUrl: url, type: "broll", order: bs.order, durationSeconds: bs.durationSeconds });
-            } else {
-              const brollData = ev.data as ClipCompletedData;
-              if (!brollData.error && brollData.rawVideoUrl) {
-                rawClips.push({ rawUrl: brollData.rawVideoUrl, type: "broll", order: bs.order, durationSeconds: bs.durationSeconds });
-              }
+            const url = brollUrls[i];
+            if (url && url !== "FAILED") {
+              rawClips.push({ rawUrl: url, type: "broll", order: bs.order, durationSeconds: bs.durationSeconds });
             }
           }
         }
@@ -441,43 +449,24 @@ export const generatePremiumVideo = inngest.createFunction(
           return result;
         });
 
-        // STEP 7: Wait for Shotstack webhook, with fallback polling if it misses.
-        let shotstackVideoUrl: string | null = null;
+        // STEP 7: Resolve the Shotstack render — races a short webhook wait against
+        // direct polling every interval, so we don't depend on the webhook arriving.
+        const shotstackResult = await resolveRenderUrl(step, {
+          renderId: composition.renderId,
+          matchKey: "shotstack-done",
+        });
 
-        if (!dev) {
-          // FIX 4: match on renderId (globally unique per render), not projectId.
-          // projectId-only match would be satisfied by a stale done event from a
-          // prior render of the same project, delivering the wrong video URL.
-          const shotstackDone = await step.waitForEvent("shotstack-done", {
-            event: "video/shotstack.completed",
-            if: `async.data.renderId == "${composition.renderId}"`,
-            timeout: "10m",
+        if (shotstackResult === "FAILED") {
+          await step.run("handle-shotstack-failure", async () => {
+            await connectDB();
+            await refundCredits(userId, "video_generation", projectId);
+            await Project.findByIdAndUpdate(projectId, { status: "failed", error: `Shotstack composition failed. renderId: ${composition.renderId}` });
+            await Job.findByIdAndUpdate(jobId, { status: "failed" });
           });
-
-          if (shotstackDone) {
-            const ssData = shotstackDone.data as ShotstackCompletedData;
-            if (ssData.error || !ssData.videoUrl) {
-              await step.run("handle-shotstack-failure", async () => {
-                await connectDB();
-                await refundCredits(userId, "video_generation", projectId);
-                await Project.findByIdAndUpdate(projectId, { status: "failed", error: `Shotstack composition failed. renderId: ${composition.renderId}` });
-                await Job.findByIdAndUpdate(jobId, { status: "failed" });
-              });
-              return;
-            }
-            shotstackVideoUrl = ssData.videoUrl;
-          } else {
-            // Webhook missed — fallback poll
-            console.warn(`[Inngest][${projectId}] Shotstack webhook timed out — falling back to polling, renderId=${composition.renderId}`);
-            shotstackVideoUrl = await shotstackFallbackPoll(step, composition.renderId);
-          }
-        } else {
-          // Dev mode: no webhook — poll directly
-          console.log(`[Inngest][${projectId}] Step 7 (dev): polling Shotstack directly`);
-          shotstackVideoUrl = await shotstackFallbackPoll(step, composition.renderId);
+          return;
         }
 
-        if (!shotstackVideoUrl) {
+        if (!shotstackResult) {
           await step.run("handle-shotstack-timeout", async () => {
             await connectDB();
             await refundCredits(userId, "video_generation", projectId);
@@ -486,6 +475,8 @@ export const generatePremiumVideo = inngest.createFunction(
           });
           return;
         }
+
+        const shotstackVideoUrl: string = shotstackResult;
 
         // STEP 8: Upload final composed video to Cloudinary (not just Shotstack CDN).
         // Pre-flight: write the temporary Shotstack URL so the project is recoverable
@@ -607,27 +598,22 @@ export const generatePremiumVideo = inngest.createFunction(
             mode: "webhook"; requestId: string; order: number; durationSeconds: number;
           }>;
 
-          const productBrollEvents = await Promise.all(
+          const productBrollUrls = await Promise.all(
             webhookProductSubmits.map(bs =>
-              step.waitForEvent(`clip-product-broll-${bs.order}`, {
-                event: "video/clip.completed",
-                if: `async.data.projectId == "${projectId}" && async.data.requestId == "${bs.requestId}"`,
-                timeout: "15m",
+              resolveClipUrl(step, {
+                model: BROLL_MODEL(),
+                requestId: bs.requestId,
+                projectId,
+                matchKey: `clip-product-broll-${bs.order}`,
               })
             )
           );
 
           for (let i = 0; i < webhookProductSubmits.length; i++) {
             const bs = webhookProductSubmits[i];
-            const ev = productBrollEvents[i];
-            if (!ev) {
-              const url = await falFallbackPoll(step, BROLL_MODEL(), bs.requestId, `fal-fallback-product-broll-${bs.order}`);
-              if (url) productRawClips.push({ rawUrl: url, order: bs.order, durationSeconds: bs.durationSeconds });
-            } else {
-              const clipData = ev.data as ClipCompletedData;
-              if (!clipData.error && clipData.rawVideoUrl) {
-                productRawClips.push({ rawUrl: clipData.rawVideoUrl, order: bs.order, durationSeconds: bs.durationSeconds });
-              }
+            const url = productBrollUrls[i];
+            if (url && url !== "FAILED") {
+              productRawClips.push({ rawUrl: url, order: bs.order, durationSeconds: bs.durationSeconds });
             }
           }
         }
@@ -692,38 +678,23 @@ export const generatePremiumVideo = inngest.createFunction(
           return result;
         });
 
-        // Wait for Shotstack (prod: webhook + fallback; dev: direct poll)
-        let productShotstackUrl: string | null = null;
+        // Resolve the Shotstack render — same webhook-race-poll pattern as the person path.
+        const productShotstackResult = await resolveRenderUrl(step, {
+          renderId: compositionProduct.renderId,
+          matchKey: "shotstack-done-product",
+        });
 
-        if (!dev) {
-          // FIX 4: match on renderId — same reason as person path above.
-          const shotstackDoneProduct = await step.waitForEvent("shotstack-done-product", {
-            event: "video/shotstack.completed",
-            if: `async.data.renderId == "${compositionProduct.renderId}"`,
-            timeout: "10m",
+        if (productShotstackResult === "FAILED") {
+          await step.run("handle-shotstack-failure-product", async () => {
+            await connectDB();
+            await refundCredits(userId, "video_generation", projectId);
+            await Project.findByIdAndUpdate(projectId, { status: "failed", error: `Shotstack composition failed. renderId: ${compositionProduct.renderId}` });
+            await Job.findByIdAndUpdate(jobId, { status: "failed" });
           });
-
-          if (shotstackDoneProduct) {
-            const ssData = shotstackDoneProduct.data as ShotstackCompletedData;
-            if (ssData.error || !ssData.videoUrl) {
-              await step.run("handle-shotstack-failure-product", async () => {
-                await connectDB();
-                await refundCredits(userId, "video_generation", projectId);
-                await Project.findByIdAndUpdate(projectId, { status: "failed", error: `Shotstack composition failed. renderId: ${compositionProduct.renderId}` });
-                await Job.findByIdAndUpdate(jobId, { status: "failed" });
-              });
-              return;
-            }
-            productShotstackUrl = ssData.videoUrl;
-          } else {
-            console.warn(`[Inngest][${projectId}] Shotstack webhook timed out for product — polling, renderId=${compositionProduct.renderId}`);
-            productShotstackUrl = await shotstackFallbackPoll(step, compositionProduct.renderId);
-          }
-        } else {
-          productShotstackUrl = await shotstackFallbackPoll(step, compositionProduct.renderId);
+          return;
         }
 
-        if (!productShotstackUrl) {
+        if (!productShotstackResult) {
           await step.run("handle-shotstack-timeout-product", async () => {
             await connectDB();
             await refundCredits(userId, "video_generation", projectId);
@@ -732,6 +703,8 @@ export const generatePremiumVideo = inngest.createFunction(
           });
           return;
         }
+
+        const productShotstackUrl: string = productShotstackResult;
 
         // Upload final composed video to Cloudinary
         // Pre-flight: same as person path — store temporary Shotstack URL for recoverability.
